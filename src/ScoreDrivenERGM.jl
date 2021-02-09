@@ -1,4 +1,4 @@
-module ScoreDrivenExponentialRandomGraphs
+module ScoreDrivenERGM
 
 
 include("./ErgmRcall.jl")

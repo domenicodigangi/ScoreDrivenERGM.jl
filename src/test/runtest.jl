@@ -1,3 +1,3 @@
-using ScoreDrivenExponentialRandomGraphs
+using ScoreDrivenERGM
 using Test
 

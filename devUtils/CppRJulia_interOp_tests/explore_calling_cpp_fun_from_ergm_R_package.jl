@@ -8,11 +8,11 @@ Not doable because Cxx.jl does not work with juia 1.5
 """
 
 using Cxx
-import ScoreDrivenExponentialRandomGraphs:ErgmRcall
+import ScoreDrivenERGM:ErgmRcall
 
-using ScoreDrivenExponentialRandomGraphs.Scalings
-using ScoreDrivenExponentialRandomGraphs.Utilities
-using ScoreDrivenExponentialRandomGraphs:StaticNets
+using ScoreDrivenERGM.Scalings
+using ScoreDrivenERGM.Utilities
+using ScoreDrivenERGM:StaticNets
 
 using PyPlot
 using RCall

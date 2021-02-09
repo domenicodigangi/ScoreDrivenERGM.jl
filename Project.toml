@@ -1,4 +1,4 @@
-name = "ScoreDrivenExponentialRandomGraphs"
+name = "ScoreDrivenERGM"
 uuid = "6ee3d76e-adae-4ed7-a671-0c83eafad244"
 authors = ["Domenico Di Gangi <digangidomenico@gmail.com>"]
 version = "0.1.0"
