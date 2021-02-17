@@ -18,6 +18,8 @@ using NLSolversBase
 using RCall
 using PyPlot
 using Logging
+using Distributed
+using SharedArrays
 
 
 using ..AReg

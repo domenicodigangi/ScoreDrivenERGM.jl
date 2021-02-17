@@ -499,7 +499,7 @@ function var_filtered_par_from_filt_and_par_unc(model::GasNetModelDirBinErgmPml,
 end
 
 
-function filter_and_conf_bands(model::GasNetModelDirBinErgmPml, A_T_dgp, quantilesVals; indTvPar = model.indTvPar,  plotFlag = false, parDgpT=zeros(2,2))
+function estimate_filter_and_conf_bands(model::GasNetModelDirBinErgmPml, A_T_dgp, quantilesVals; indTvPar = model.indTvPar,  plotFlag = false, parDgpT=zeros(2,2))
     
     N = size(A_T_dgp)[1]
     T = size(A_T_dgp)[3]
@@ -577,7 +577,7 @@ function conf_bands_coverage(model::GasNetModelDirBinErgmPml, parDgpT, N; nSampl
     for k=1:nSampleCoverage
         
         A_T_dgp = sample_dgp(model, parDgpT,N)
-        allObsT, allvEstSdResPar[:,k], allfVecT_filt[:,:,k], ~, allConfBandsParFilt[:,:,:,k], allErrFlags[k] = filter_and_conf_bands(model, A_T_dgp, quantilesVals)
+        allObsT, allvEstSdResPar[:,k], allfVecT_filt[:,:,k], ~, allConfBandsParFilt[:,:,:,k], allErrFlags[k] = estimate_filter_and_conf_bands(model, A_T_dgp, quantilesVals)
 
         for b in 1:nBands
             for p in 1:nErgmPar 
