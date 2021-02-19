@@ -45,6 +45,8 @@ identify(Model::GasNetModel,UnPar::Array{<:Real,1};idType = "pinco") =
 
 
 
+number_ergm_par(model::T where T <:GasNetModel) = length(model.indTvPar)
+
 include("./DynNets_models/DynNets_SDModelsUtils.jl")
 
 include("./DynNets_models/DynNets_GasNetModelBin1.jl")

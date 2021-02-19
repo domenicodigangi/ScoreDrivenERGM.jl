@@ -17,12 +17,6 @@ statsFromMat(Model::GasNetModelDirBin0Rec0_mle, A ::Matrix{<:Real}) = StaticNets
 
 StaModType(model::T where T<: GasNetModelDirBin0Rec0 ) = StaticNets.fooNetModelDirBin0Rec0# to be substituted with a conversion mechanism
 
-
-
-
-number_ergm_par(model::T where T <:GasNetModelDirBin0Rec0) = 2
-
-
 type_of_obs(model::GasNetModelDirBin0Rec0_mle) =  Array{Float64, 1}
 
 
@@ -249,9 +243,9 @@ function score_driven_filter( model::T where T<: GasNetModelDirBin0Rec0, N, vRes
     #fVecT = hcat(fVecT[:, 2:end], ftot_tp1)
 
     if dgp
-        return fVecT, A_T, sVecT, scalMatT
+        return fVecT::Array{Float64, 2}, A_T, sVecT, scalMatT
     else
-        return fVecT, logLikeVecT, sVecT, scalMatT
+        return fVecT::Array{<:Real, 2}, logLikeVecT::Vector{<:Real}, sVecT::Array{<:Real,2}, scalMatT::Array{<:Real, 3}
     end
 end
 
@@ -300,7 +294,7 @@ function estimate(model::T where T<: GasNetModelDirBin0Rec0, N, obsT; indTvPar::
     nErgmPar = 2 #
     NTvPar = sum(indTvPar)
     NTargPar = sum(indTargPar)
-    @show (N, T)
+    Logging.@debug( "Estimating N = $N , T=$T")
 
     # UM is a vector with target values for dynamical ones. Parameters
     # if not given as input use the static estimates
@@ -383,16 +377,15 @@ function estimate(model::T where T<: GasNetModelDirBin0Rec0, N, obsT; indTvPar::
         ADobjfunGas = TwiceDifferentiable(objfunGas, vParOptim_0; autodiff = :forward);
     end
 
-    @show objfunGas(restrict_all_par(model, indTvPar, vParOptim_0))
-    @show vParOptim_0
+    Logging.@debug("Starting point for Optim $vParOptim_0")
     optim_out2  = optimize(ADobjfunGas,vParOptim_0 ,algo,optims_opt)
     outParAllUn = Optim.minimizer(optim_out2)
     vecAllParGasHat, vecAllParConstHat = divideCompleteRestrictPar(outParAllUn)
 
-    @show(optim_out2)
+    Logging.@debug(optim_out2)
 
-    @show(vecAllParGasHat)
-    @show(vecAllParConstHat)
+    Logging.@debug("Final paramters SD: $vecAllParGasHat , constant: $vecAllParConstHat ")
+
 
     function reshape_results(vecAllParGasHat)
         arrayAllParHat = fill(Float64[],nErgmPar)
@@ -496,8 +489,8 @@ function dgp_misspecified(model::GasNetModelDirBin0Rec0, dgpType, N, T;  minAlph
     minBeta, maxBeta =  beta_min_max_from_alpha_min(minAlpha, N)
 
 
-    @show minBeta, maxBeta
-    @show minAlpha, maxAlpha
+    Logging.@debug((;minBeta, maxBeta))
+    Logging.@debug((;minAlpha, maxAlpha))
     
     minBetaSin, maxBetaSin = minBeta, maxBeta# .* [1,1.5]
     betaConst = minBeta#(maxBeta - minBeta)/2
@@ -789,9 +782,7 @@ function distrib_filtered_par_from_mv_normal(model::GasNetModelDirBin0Rec0, N, o
     filtCovHatSample = zeros(nErgmPar, T, nSample)
 
     vEstSdUnPar = unrestrict_all_par(model, indTvPar, vEstSdResPar)
-    # @show vEstSdUnPar
-    # @show mvSDUnParEstCov
-
+   
     zeroMeanSample =  rand(MvNormal(mvSDUnParEstCov), nSample ) 
     sampleUnParAll = zeroMeanSample .+ vEstSdUnPar
 
@@ -815,8 +806,7 @@ function distrib_filtered_par_from_mv_normal(model::GasNetModelDirBin0Rec0, N, o
     # remove samples that resulted in inconsistent P_t
     indBadSamples = [any(filtCovHatSample[:,:,n].<0) | any(.!isfinite.(filtCovHatSample[:,:,n])) for n in 1:nSample]
 
-    @show mean(indBadSamples)
-
+    
     if mean(indBadSamples) > 0.5 
         Logging.@error("Sampling from mvNormal resulted in $(mean(indBadSamples)*100) % of bad samples. Rejected") 
         errFlag = true
@@ -945,10 +935,9 @@ function conf_bands_buccheri(model::GasNetModelDirBin0Rec0, obsT, indTvPar, fVec
                 try
                     confBandsParFilt[p, t, b,  :] = quantile.(Normal(fVecT_filt[p, t], sqrt(parUncVarianceT[p,t] + filtUncVarianceT[p,t])), quantilesVals[b])
                 catch e
-                    @show (parUncVarianceT[p,t] , filtUncVarianceT[p,t])
-                    @show filtCovDiagHatMean
+                    Logging.@error( (parUncVarianceT[p,t] , filtUncVarianceT[p,t], filtCovDiagHatMean))
 
-                error(e)
+                    error(e)
                 end
             end
         end
@@ -1076,14 +1065,13 @@ function estimate_and_filter(model::GasNetModelDirBin0Rec0, A_T_dgp; indTvPar = 
 
     fVecT_filt , target_fun_val_T, sVecT_filt = score_driven_filter(model, N,  vEstSdResPar, indTvPar; obsT = obsT, ftot_0 = ftot_0)
 
-    return obsT, vEstSdResPar, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag
+    return obsT, vEstSdResPar, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0
 end
     
 
-function conf_bands_given_SD_estimates(model::GasNetModelDirBin0Rec0, obsT, vEstSdResPar, quantilesVals::Vector{Vector{Float64}}; indTvPar = model.indTvPar, parDgpT=zeros(2,2), plotFlag=false, parUncMethod = "WHITE-MLE")
+function conf_bands_given_SD_estimates(model::GasNetModelDirBin0Rec0, obsT, N, vEstSdResPar, quantilesVals::Vector{Vector{Float64}}; indTvPar = model.indTvPar, parDgpT=zeros(2,2), plotFlag=false, parUncMethod = "WHITE-MLE", ftot_0 = zeros(2))
     
-    N = size(A_T_dgp)[1]
-    T = size(A_T_dgp)[3]
+    T = length(obsT)
 
     fVecT_filt , target_fun_val_T, sVecT_filt = score_driven_filter(model, N,  vEstSdResPar, indTvPar; obsT = obsT, ftot_0 = ftot_0)
 
@@ -1109,7 +1097,7 @@ function conf_bands_given_SD_estimates(model::GasNetModelDirBin0Rec0, obsT, vEst
         distribFilteredSD, filtCovHatSample, mvSDUnParEstCov, errFlagMvNormSample = distrib_filtered_par_from_mv_normal(model, N, obsT, indTvPar, ftot_0, vEstSdResPar, mvSDUnParEstCov)
     end
 
-    confBandsFiltPar,  confBandsPar = conf_bands_given_SD_estimates_buccheri(model, obsT, indTvPar, fVecT_filt, distribFilteredSD, filtCovHatSample, quantilesVals)
+    confBandsFiltPar,  confBandsPar = conf_bands_buccheri(model, obsT, indTvPar, fVecT_filt, distribFilteredSD, filtCovHatSample, quantilesVals)
 
   
     if plotFlag
@@ -1126,7 +1114,7 @@ end
 function estimate_filter_and_conf_bands(model::GasNetModelDirBin0Rec0, A_T_dgp, quantilesVals::Vector{Vector{Float64}}; indTvPar = model.indTvPar, parDgpT=zeros(2,2), plotFlag=false, parUncMethod = "WHITE-MLE")
     
   
-    obsT, vEstSdResPar, fVecT_filt, ~, ~, ~, conv_flag = estimate_and_filter(model, A_T_dgp; indTvPar = indTvPar)
+    obsT, vEstSdResPar, fVecT_filt, ~, ~, ~, conv_flag, ftot_0 = estimate_and_filter(model, A_T_dgp; indTvPar = indTvPar)
     
     fVecT_filt, confBandsFiltPar, confBandsPar, errFlag, mvSDUnParEstCov, distribFilteredSD = conf_bands_given_SD_estimates(model, obsT, vEstSdResPar, quantilesVals; indTvPar = indTvPar, parDgpT=parDgpT, plotFlag=plotFlag, parUncMethod = parUncMethod)
 
@@ -1135,42 +1123,37 @@ function estimate_filter_and_conf_bands(model::GasNetModelDirBin0Rec0, A_T_dgp, 
 end
 
 
+
 function simulate_and_estimate_parallel(model::GasNetModelDirBin0Rec0, dgpSettings, T, N, nSample)
 
-    nErgmPar = number_ergm_par(model)
-
-    # sample once the DGP to make sure that the obs type is correct
-    parDgpT = DynNets.dgp_misspecified(model, dgpSettings.type, N, T;  dgpSettings.opt...)
-    A_T_dgp = sample_dgp(model, parDgpT,N)
-    obsT = [statsFromMat(model, A_T_dgp[:,:,t]) for t in 1:T ]
-
-
-    # obsfor pml models do not have constant size, hence cannot be stored in shared array2VecGasPar
-    allAT = SharedArray{Bool}(N,N,T,nSample)
-    allConvFlag = SharedArray{Bool}(nSample)
-    allParDgpT =SharedArray( zeros(nErgmPar, T, nSample))
-    allvEstSdResPar = SharedArray(zeros(3*nErgmPar, nSample))
-    allfVecT_filt =SharedArray( zeros(nErgmPar, T, nSample))
-   
-   
-   
-    @sync @distributed for k=1:nSample
-
-        @show k
+    count = SharedArray(ones(1))
+    res = @sync @distributed vcat for k=1:nSample
+        
+        Logging.@info("Estimating N = $N , T=$T iter n $(count[1])")
 
         parDgpT = DynNets.dgp_misspecified(model, dgpSettings.type, N, T;  dgpSettings.opt...)
 
-        A_T_dgp = sample_dgp(model, parDgpT,N)
+        A_T_dgp = DynNets.sample_dgp(model, parDgpT,N)
 
-        obsT, vEstSdResPar, fVecT_filt, ~, ~, conv_flag = estimate_and_filter(model, A_T_dgp)
+        obsT, vEstSdResPar, fVecT_filt, ~, ~, conv_flag, ftot_0 = DynNets.estimate_and_filter(model, A_T_dgp)
             
-        allAT[:,:,:,k], ~, allParDgpT[:, :, k], allvEstSdResPar[:,k], allfVecT_filt[:,:,k], allConvFlag[k] =  A_T_dgp, obsT, parDgpT, vEstSdResPar, fVecT_filt, conv_flag
+        count[1] += 1
+
+        (;obsT, parDgpT, vEstSdResPar, fVecT_filt, conv_flag, ftot_0)
         
     end
 
+
+    allObsT = [r.obsT for r in res]
+    allParDgpT = reduce(((a,b) -> cat(a,b, dims=3)), [r.parDgpT for r in res])
+    allvEstSdResPar = reduce(((a,b) -> cat(a,b, dims=2)), [r.vEstSdResPar for r in res])
+    allfVecT_filt = reduce(((a,b) -> cat(a,b, dims=3)), [r.fVecT_filt for r in res])
+    allConvFlag = [r.conv_flag for r in res]
+    allftot_0 = reduce(((a,b) -> cat(a,b, dims=2)), [r.ftot_0 for r in res])
+
     Logging.@info("The fraction of estimates that resulted in errors is $(mean(.!allConvFlag)) ")
 
-    return sdata(allAT), sdata(allvEstSdResPar), sdata(allfVecT_filt), sdata(allParDgpT), sdata(allConvFlag)
+    return allObsT, allvEstSdResPar, allfVecT_filt, allParDgpT, allConvFlag, allftot_0
 end
 
 

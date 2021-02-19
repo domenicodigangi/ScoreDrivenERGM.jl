@@ -1,4 +1,6 @@
 
+
+
 # options and conversions of parameters for optimization
 setOptionsOptim(model::GasNetModel) = setOptionsOptim(fooGasNetModelDirBin1)
 
