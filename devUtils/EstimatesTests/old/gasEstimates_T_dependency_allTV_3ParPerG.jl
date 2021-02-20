@@ -3,7 +3,7 @@
 # time series
 
 using StatsBase
-using JLD
+using JLD2
 
 initWorkers()
 

@@ -11,7 +11,7 @@ using Roots
 using MLBase
 using GLM
 using LinearAlgebra
-using JLD
+using JLD2
 using DataFrames
 using ForwardDiff
 using NLSolversBase

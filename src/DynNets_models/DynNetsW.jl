@@ -326,7 +326,7 @@ function predict_score_driven_par( Model::GasNetModelDirW1,strIO_t::Array{<:Real
      ftotIO_tp1 = ftotIO_t
      return ftotIO_tp1,loglike_t,I_tm1
   end
-function score_driven_filter( Model::GasNetModelDirW1,
+function score_driven_filter_or_dgp( Model::GasNetModelDirW1,
                                 vResGasPar::Array{<:Real,1} ;
                                 obsT::Array{<:Real,2}=Model.obsT,
                                 groupsInds:: Array{Array{Int,1},1}=Model.groupsInds,
@@ -404,9 +404,9 @@ function score_driven_filter( Model::GasNetModelDirW1,
         return fIOVecT, loglike
     end
     end
-score_driven_filter(Model::GasNetModelDirW1) = score_driven_filter(Model,array2VecGasPar(Model,Model.Par))
+score_driven_filter_or_dgp(Model::GasNetModelDirW1) = score_driven_filter_or_dgp(Model,array2VecGasPar(Model,Model.Par))
 sampl(Mod::GasNetModelDirW1,T::Int)=( N = length(Mod.groupsInds[1]) ;
-                                        tmpTuple = score_driven_filter(Mod,[Mod.Par[1];Mod.Par[2];Mod.Par[3]];  dgpTN = (T,N) );
+                                        tmpTuple = score_driven_filter_or_dgp(Mod,[Mod.Par[1];Mod.Par[2];Mod.Par[3]];  dgpTN = (T,N) );
                                         degsIO_T = [sumSq(tmpTuple[1],3) sumSq(tmpTuple[1],2)];
                                         (GasNetModelDirBin1(degsIO_T,Mod.Par,Mod.groupsInds,Mod.scoreScalingType),tmpTuple[1],tmpTuple[2]) )
 
@@ -484,7 +484,7 @@ function estimate(Model::GasNetModelDirW1;start_values = [zeros(Real,10),zeros(R
         W_new = UMstaticGroups.*(1-Bre)
         vParRes = [W_new;Bre;Are]
         #display((vParRes[2],vParRes[end-1],vParRes[end]))
-            foo,loglikelValue = score_driven_filter( Model,vParRes)
+            foo,loglikelValue = score_driven_filter_or_dgp( Model,vParRes)
 
         return  -loglikelValue
     end

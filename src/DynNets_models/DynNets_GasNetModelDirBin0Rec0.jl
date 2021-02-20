@@ -159,7 +159,7 @@ function updatedGasPar( model::T where T<: GasNetModelDirBin0Rec0, obs_t, ftot_t
 end
 
 
-function score_driven_filter( model::T where T<: GasNetModelDirBin0Rec0, N, vResGasPar::Array{<:Real,1}, indTvPar::BitArray{1}; vConstPar ::Array{<:Real,1} = zeros(Real,2), obsT=zeros(2,2), ftot_0::Array{<:Real,1} = zeros(Real,2), dgpNT = (0,0))
+function score_driven_filter_or_dgp( model::T where T<: GasNetModelDirBin0Rec0, N, vResGasPar::Array{<:Real,1}, indTvPar::BitArray{1}; vConstPar ::Array{<:Real,1} = zeros(Real,2), obsT=zeros(2,2), ftot_0::Array{<:Real,1} = zeros(Real,2), dgpNT = (0,0))
 
     sum(dgpNT) == 0 ? dgp = false : dgp = true
 
@@ -247,6 +247,136 @@ function score_driven_filter( model::T where T<: GasNetModelDirBin0Rec0, N, vRes
     else
         return fVecT::Array{<:Real, 2}, logLikeVecT::Vector{<:Real}, sVecT::Array{<:Real,2}, scalMatT::Array{<:Real, 3}
     end
+end
+
+function score_driven_filter( model::T where T<: GasNetModelDirBin0Rec0, N, obsT, vResGasPar::Array{<:Real,1}, indTvPar::BitArray{1}; vConstPar ::Array{<:Real,1} = zeros(Real,2), ftot_0::Array{<:Real,1} = zeros(Real,2))
+
+    nErgmPar = number_ergm_par(model)
+    NTvPar   = sum(indTvPar)
+    T= length(obsT)
+
+    # Organize parameters of the GAS update equation
+    Wvec = vResGasPar[1:3:3*NTvPar]
+    Bvec = vResGasPar[2:3:3*NTvPar]
+    Avec = vResGasPar[3:3:3*NTvPar]
+
+    #compute unconditional means according to SD dgp
+    UMallPar = zeros(Real,nErgmPar)
+    UMallPar[indTvPar] =  Wvec ./ (1 .- Bvec)
+    if !all(indTvPar) # if not all parameters are time varying
+        UMallPar[.!indTvPar] = vConstPar
+    end
+
+    sum(ftot_0)==0 ? ftot_0 = UMallPar : ()# identify(model,UMallNodesIO)
+
+    fVecT = ones(Real,nErgmPar,T)
+    sVecT = ones(Real,nErgmPar,T)
+    scalMatT = ones(Real,nErgmPar, nErgmPar,T)
+    logLikeVecT = ones(Real,T)
+   
+    if NTvPar==0
+        I_tm1 = ones(1,1)
+    else
+        I_tm1 = Float64.(Diagonal{Real}(I,NTvPar))
+    end
+
+
+    fVecT[:,1] = ftot_0
+
+    ftot_tp1 = zeros(nErgmPar)
+    for t=1:T
+
+        obs_t = obsT[t]
+
+        #obj fun at time t is objFun(obs_t, f_t)
+
+        # predictive step
+        ftot_tp1, logLikeVecT[t], scalMatT[:,:,t], sVecT[:,t] = updatedGasPar(model, obs_t, fVecT[:, t], I_tm1, indTvPar, Wvec, Bvec, Avec)
+
+        I_tm1 = scalMatT[:,:,t]
+
+        # would the following be the update step instead ??
+        #fVecT[:,t], loglike_t, I_tm1, grad_t = updatedGasPar(model,N, obs_t, fVecT[:,t-1], I_tm1, indTvPar, Wvec, Bvec, Avec)
+
+        if t!=T
+            fVecT[:,t+1] = ftot_tp1
+        end
+    end
+
+    return fVecT::Array{<:Real, 2}, logLikeVecT::Vector{<:Real}, sVecT::Array{<:Real,2}, scalMatT::Array{<:Real, 3}
+end
+
+function score_driven_dgp( model::T where T<: GasNetModelDirBin0Rec0, N, dgpNT, vResGasPar::Array{<:Real,1}, indTvPar::BitArray{1}; vConstPar ::Array{<:Real,1} = zeros(Real,2), ftot_0::Array{<:Real,1} = zeros(Real,2))
+
+    nErgmPar = number_ergm_par(model)
+    NTvPar   = sum(indTvPar)
+
+    T = dgpNT[2]
+    N_const = dgpNT[1]
+    N_T = ones(Int, T) .* N_const 
+    N = N_const
+
+    # Organize parameters of the GAS update equation
+    Wvec = vResGasPar[1:3:3*NTvPar]
+    Bvec = vResGasPar[2:3:3*NTvPar]
+    Avec = vResGasPar[3:3:3*NTvPar]
+
+    # start values equal the unconditional mean,and  constant ones remain equal to the unconditional mean, hence initialize as:
+    UMallPar = zeros(Real,nErgmPar)
+    UMallPar[indTvPar] =  Wvec ./ (1 .- Bvec)
+    if !all(indTvPar) # if not all parameters are time varying
+        UMallPar[.!indTvPar] = vConstPar
+    end
+
+    fVecT = ones(Real,nErgmPar,T)
+    sVecT = ones(Real,nErgmPar,T)
+    scalMatT = ones(Real,nErgmPar, nErgmPar,T)
+    logLikeVecT = ones(Real,T)
+
+    sum(ftot_0)==0 ? ftot_0 = UMallPar : ()# identify(model,UMallNodesIO)
+    
+    
+    if NTvPar==0
+        I_tm1 = ones(1,1)
+    else
+        I_tm1 = Float64.(Diagonal{Real}(I,NTvPar))
+    end
+
+    loglike = 0
+
+    A_T = zeros(Int8, N, N, T)
+  
+    fVecT[:,1] = ftot_0
+
+    ftot_tp1 = zeros(nErgmPar)
+    for t=1:T
+    #    println(t)
+  
+        diadProb = StaticNets.diadProbFromPars(StaticNets.fooNetModelDirBin0Rec0, fVecT[:, t] )
+
+        A_t = StaticNets.samplSingMatCan(StaticNets.fooNetModelDirBin0Rec0, diadProb, N)
+        
+        A_T[:, : , t] = A_t
+        
+        obs_t = statsFromMat(model, A_t)
+  
+        #obj fun at time t is objFun(obs_t, f_t)
+
+        # predictive step
+        ftot_tp1, logLikeVecT[t], scalMatT[:,:,t], sVecT[:,t] = updatedGasPar(model, obs_t, fVecT[:, t], I_tm1, indTvPar, Wvec, Bvec, Avec)
+
+        I_tm1 = scalMatT[:,:,t]
+
+        # would the following be the update step instead ??
+        #fVecT[:,t], loglike_t, I_tm1, grad_t = updatedGasPar(model,N, obs_t, fVecT[:,t-1], I_tm1, indTvPar, Wvec, Bvec, Avec)
+
+        if t!=T
+            fVecT[:,t+1] = ftot_tp1
+        end
+    end
+
+    return fVecT::Array{Float64, 2}, A_T, sVecT, scalMatT
+
 end
 
 
@@ -366,7 +496,7 @@ function estimate(model::T where T<: GasNetModelDirBin0Rec0, N, obsT; indTvPar::
 
         oneInADterms  = (StaticNets.maxLargeVal + vecUnPar[1])/StaticNets.maxLargeVal
 
-        foo, logLikeVecT, foo1 = score_driven_filter( model, N, vecReGasParAll, indTvPar; obsT = obsT, vConstPar =  vecConstPar, ftot_0 = ftot_0 .* oneInADterms)
+        foo, logLikeVecT, foo1 = score_driven_filter( model, N, obsT, vecReGasParAll, indTvPar;  vConstPar =  vecConstPar, ftot_0 = ftot_0 .* oneInADterms)
 
          return - sum(logLikeVecT)
     end
@@ -531,7 +661,7 @@ function dgp_misspecified(model::GasNetModelDirBin0Rec0, dgpType, N, T;  minAlph
             vResParDgp[2:3:end] .= B
             vResParDgp[3:3:end].= A
 
-            fVecT, ~, ~ = DynNets.score_driven_filter( model_mle, N, vResParDgp, indTvPar; dgpNT = (N,T))
+            fVecT, ~, ~ = DynNets.score_driven_filter_or_dgp( model_mle, N, vResParDgp, indTvPar; dgpNT = (N,T))
 
             global θ_η_parDgpT = fVecT
 
@@ -614,12 +744,12 @@ function sample_est_mle_pmle(model::GasNetModelDirBin0Rec0, parDgpT, N, Nsample;
         ## estimate SD
         estPar_pmle, conv_flag,UM_mple , ftot_0_mple = estimate(model_pmle, N,  change_stats_T_dgp; indTvPar=indTvPar,indTargPar=indTvPar)
         vResEstPar_pmle = DynNets.array2VecGasPar(model_pmle, estPar_pmle, indTvPar)
-        fVecT_filt_p , logLikeVecT, sVecT_filt_p = score_driven_filter( model_pmle, N, vResEstPar_pmle, indTvPar; obsT = change_stats_T_dgp, ftot_0 = ftot_0_mple)
+        fVecT_filt_p , logLikeVecT, sVecT_filt_p = score_driven_filter( model_pmle, N, obsT, vResEstPar_pmle, indTvPar; change_stats_T_dgp, ftot_0 = ftot_0_mple)
         vEstSd_pmle[:,n] = vcat(vResEstPar_pmle, ftot_0_mple)
 
         estPar_mle, conv_flag,UM_mle , ftot_0_mle = estimate(model_mle, N, stats_T_dgp; indTvPar=indTvPar, indTargPar=indTvPar)
         vResEstPar_mle = DynNets.array2VecGasPar(model_mle, estPar_mle, indTvPar)
-        fVecT_filt , logLikeVecT, sVecT_filt = score_driven_filter( model_mle, N, vResEstPar_mle, indTvPar; obsT = stats_T_dgp, ftot_0=ftot_0_mle)
+        fVecT_filt , logLikeVecT, sVecT_filt = score_driven_filter_or_dgp( model_mle, N, vResEstPar_mle, indTvPar; obsT = stats_T_dgp, ftot_0=ftot_0_mle)
         vEstSd_mle[:,n] = vcat(vResEstPar_mle, ftot_0_mle)
 
         if plotFlag
@@ -679,7 +809,7 @@ function A0_B0_est_for_white_cov_mat_obj_SD_filter_time_seq(model::GasNetModelDi
 
             oneInADterms  = (StaticNets.maxLargeVal + vecSDParRe[1])/StaticNets.maxLargeVal
 
-            fVecT_filt, logLikeVecT, ~ = DynNets.score_driven_filter( model, N,  vecSDParRe, indTvPar; obsT = obsT[1:t], vConstPar =  vConstPar, ftot_0 = ftot_0 .* oneInADterms)
+            fVecT_filt, logLikeVecT, ~ = DynNets.score_driven_filter( model, N, obsT[1:t], vecSDParRe, indTvPar; vConstPar =  vConstPar, ftot_0 = ftot_0 .* oneInADterms)
         
             return - logLikeVecT[end]
         end
@@ -699,7 +829,7 @@ function A0_B0_est_for_white_cov_mat_obj_SD_filter_time_seq(model::GasNetModelDi
 
     #     oneInADterms  = (StaticNets.maxLargeVal + vecSDParRe[1])/StaticNets.maxLargeVal
 
-    #     fVecT_filt, target_fun_val_T, ~ = DynNets.score_driven_filter( model, N,  vecSDParRe, indTvPar; obsT = obsT, vConstPar =  vConstPar, ftot_0 = ftot_0 .* oneInADterms)
+    #     fVecT_filt, target_fun_val_T, ~ = DynNets.score_driven_filter_or_dgp( model, N,  vecSDParRe, indTvPar; obsT = obsT, vConstPar =  vConstPar, ftot_0 = ftot_0 .* oneInADterms)
 
     #     return - target_fun_val_T
     # end
@@ -791,7 +921,7 @@ function distrib_filtered_par_from_mv_normal(model::GasNetModelDirBin0Rec0, N, o
 
         vecSDParRe, vConstPar = divide_SD_par_from_const(model, indTvPar, vResPar)
 
-        distribFilteredSD[n, :, :] , ~, ~, scalMatT = DynNets.score_driven_filter( model, N,  vecSDParRe, indTvPar; obsT = obsT, ftot_0=ftot_0, vConstPar=vConstPar)
+        distribFilteredSD[n, :, :] , ~, ~, scalMatT = DynNets.score_driven_filter( model, N, obsT, vecSDParRe, indTvPar;ftot_0=ftot_0, vConstPar=vConstPar)
 
         BMatSD, AMatSD = divide_in_B_A_mats_as_if_all_TV(model, indTvPar, vResPar)
 
@@ -839,7 +969,7 @@ function par_bootstrap_distrib_filtered_par(model::GasNetModelDirBin0Rec0, N, ob
         
         # try
             # sample SD dgp
-            fVecTDgp, A_T_dgp, ~ = DynNets.score_driven_filter( model, N, vEstSdResPar, indTvPar; dgpNT = (N,T))
+            fVecTDgp, A_T_dgp, ~ = DynNets.score_driven_filter_or_dgp( model, N, vEstSdResPar, indTvPar; dgpNT = (N,T))
             obsTNew = [statsFromMat(model, A_T_dgp[:,:,t]) for t in 1:T ]
 
             # Estimate SD static params from SD DGP
@@ -853,7 +983,7 @@ function par_bootstrap_distrib_filtered_par(model::GasNetModelDirBin0Rec0, N, ob
 
             vecSDParRe, vConstPar = divide_SD_par_from_const(model, indTvPar, vResPar)
 
-            distribFilteredSD[n, :, :] , ~, ~ = DynNets.score_driven_filter( model, N,  vecSDParRe, indTvPar; obsT = obsT, ftot_0=ftot_0, vConstPar=vConstPar)
+            distribFilteredSD[n, :, :] , ~, ~ = DynNets.score_driven_filter( model, N, obsT, vecSDParRe, indTvPar; ftot_0=ftot_0, vConstPar=vConstPar)
 
             BMatSD, AMatSD = divide_in_B_A_mats_as_if_all_TV(model, indTvPar, vResPar)
 
@@ -1063,17 +1193,17 @@ function estimate_and_filter(model::GasNetModelDirBin0Rec0, A_T_dgp; indTvPar = 
 
     vEstSdResPar = array2VecGasPar(model, estSdResPar, indTvPar)
 
-    fVecT_filt , target_fun_val_T, sVecT_filt = score_driven_filter(model, N,  vEstSdResPar, indTvPar; obsT = obsT, ftot_0 = ftot_0)
+    fVecT_filt , target_fun_val_T, sVecT_filt = score_driven_filter(model, N, obsT,  vEstSdResPar, indTvPar;ftot_0 = ftot_0)
 
     return obsT, vEstSdResPar, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0
 end
     
 
-function conf_bands_given_SD_estimates(model::GasNetModelDirBin0Rec0, obsT, N, vEstSdResPar, quantilesVals::Vector{Vector{Float64}}; indTvPar = model.indTvPar, parDgpT=zeros(2,2), plotFlag=false, parUncMethod = "WHITE-MLE", ftot_0 = zeros(2))
+function conf_bands_given_SD_estimates(model::GasNetModelDirBin0Rec0, obsT, N, vEstSdResPar, ftot_0, quantilesVals::Vector{Vector{Float64}}; indTvPar = model.indTvPar, parDgpT=zeros(2,2), plotFlag=false, parUncMethod = "WHITE-MLE" )
     
     T = length(obsT)
 
-    fVecT_filt , target_fun_val_T, sVecT_filt = score_driven_filter(model, N,  vEstSdResPar, indTvPar; obsT = obsT, ftot_0 = ftot_0)
+    fVecT_filt , target_fun_val_T, sVecT_filt = score_driven_filter(model, N, obsT,  vEstSdResPar, indTvPar; ftot_0 = ftot_0)
 
 
     if contains(parUncMethod, "PAR-BOOTSTRAP")
@@ -1107,7 +1237,7 @@ function conf_bands_given_SD_estimates(model::GasNetModelDirBin0Rec0, obsT, N, v
 
     errFlag = errFlagEstCov | errFlagMvNormSample
 
-    return fVecT_filt, confBandsFiltPar, confBandsPar, errFlag, mvSDUnParEstCov, distribFilteredSD
+    return fVecT_filt::Array{<:Real,2}, confBandsFiltPar::Array{<:Real,4}, confBandsPar::Array{<:Real,4}, errFlag::Bool, mvSDUnParEstCov::LinearAlgebra.Symmetric{Float64,Array{Float64,2}}, distribFilteredSD::Array{Float64,3}
 end
 
 
@@ -1116,7 +1246,7 @@ function estimate_filter_and_conf_bands(model::GasNetModelDirBin0Rec0, A_T_dgp, 
   
     obsT, vEstSdResPar, fVecT_filt, ~, ~, ~, conv_flag, ftot_0 = estimate_and_filter(model, A_T_dgp; indTvPar = indTvPar)
     
-    fVecT_filt, confBandsFiltPar, confBandsPar, errFlag, mvSDUnParEstCov, distribFilteredSD = conf_bands_given_SD_estimates(model, obsT, vEstSdResPar, quantilesVals; indTvPar = indTvPar, parDgpT=parDgpT, plotFlag=plotFlag, parUncMethod = parUncMethod)
+    fVecT_filt, confBandsFiltPar, confBandsPar, errFlag, mvSDUnParEstCov, distribFilteredSD = conf_bands_given_SD_estimates(model, obsT, vEstSdResPar, ftot_0, quantilesVals; indTvPar = indTvPar, parDgpT=parDgpT, plotFlag=plotFlag, parUncMethod = parUncMethod)
 
     return obsT, vEstSdResPar, fVecT_filt, confBandsFiltPar, confBandsPar, errFlag
 

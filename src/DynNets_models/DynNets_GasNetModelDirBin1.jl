@@ -208,7 +208,7 @@ function predict_score_driven_par( Model::GasNetModelDirBin1,N::Int,degsIO_t::Ar
      ftotIO_tp1 =identify(Model,ftotIO_tp1 )
      return ftotIO_tp1,loglike_t,gradIO_t
   end
-function score_driven_filter( Model::GasNetModelDirBin1,
+function score_driven_filter_or_dgp( Model::GasNetModelDirBin1,
                                 vResGasPar::Array{<:Real,1};vConstPar::Array{<:Real,1} = zeros(Real,2),
                                 obsT::Array{<:Real,2}=Model.obsT, ftotIO_0::Array{<:Real,1} = zeros(2),
                                 groupsInds::Array{<:Array{<:Real,1},1}=Model.groupsInds,
@@ -281,7 +281,7 @@ function score_driven_filter( Model::GasNetModelDirBin1,
     end
     end
 
-score_driven_filter(Model::GasNetModelDirBin1) = score_driven_filter(Model,array2VecGasPar(Model,Model.Par))
+score_driven_filter_or_dgp(Model::GasNetModelDirBin1) = score_driven_filter_or_dgp(Model,array2VecGasPar(Model,Model.Par))
 function gasScoreSeries( Model::GasNetModelDirBin1,
                                 dynPar_T::Array{<:Real,2};
                                 obsT::Array{<:Real,2}=Model.obsT)
@@ -318,7 +318,7 @@ function gasScoreSeries( Model::GasNetModelDirBin1,
     end
 
 sampl(Mod::GasNetModelDirBin1,T::Int)=( N = length(Mod.groupsInds[1]) ;
-                                        tmpTuple = score_driven_filter(Mod,[Mod.Par[1];Mod.Par[2];Mod.Par[3]];  dgpNT = (N,T) );
+                                        tmpTuple = score_driven_filter_or_dgp(Mod,[Mod.Par[1];Mod.Par[2];Mod.Par[3]];  dgpNT = (N,T) );
                                         degsIO_T = [sumSq(tmpTuple[1],3) sumSq(tmpTuple[1],2)];
                                         (GasNetModelDirBin1(degsIO_T,Mod.Par,Mod.groupsInds,Mod.scoreScalingType),tmpTuple[1],tmpTuple[2]) )
 
@@ -414,7 +414,7 @@ function estimateTarg(Model::GasNetModelDirBin1; SSest::Array{<:Real,2} =zeros(2
          vecReGasPar = [WNodes;ReB;ReA ]
          #StaticNets.expMatrix2(StaticNets.fooNetModelDirBin1,vecReGasPar[1:NGW])
          #NON POSSONO STARE NELLO STESSO VETTORE PARAMETRI DA OTTIMIZZARE DI TIPO FORWARDDIFF E TYPES NORMALI  ?      ?      ?      ?
-         foo,loglikelValue = score_driven_filter( Model,vecReGasPar;
+         foo,loglikelValue = score_driven_filter_or_dgp( Model,vecReGasPar;
                                         groupsInds = groupsInds, ftotIO_0=ftotIO_0)
          return - loglikelValue
     end
@@ -478,7 +478,7 @@ function estimateOld(Model::GasNetModelDirBin1;start_values = [zeros(Real,10),ze
     vGasParAll0_Un = unRestrictGasPar(Model,[W0_Groups ;B0_ReGroups;A0_ReGroups ] ) # vGasParGroups0_Un#
     # objective function for the optimization
     function objfunGas(vparUn::Array{<:Real,1})# a function of the groups parameters
-              foo,loglikelValue = score_driven_filter( Model,restrictGasPar(Model,vparUn))
+              foo,loglikelValue = score_driven_filter_or_dgp( Model,restrictGasPar(Model,vparUn))
            return - loglikelValue
     end
 
@@ -547,7 +547,7 @@ function estimateTargOld(Model::GasNetModelDirBin1)
          ReB = vecReAB[1:GBA]
          WGroups = WGroupsFromB(ReB)
          vecReGasPar = [WGroups;vecReAB]
-         foo,loglikelValue = score_driven_filter( Model,vecReGasPar )
+         foo,loglikelValue = score_driven_filter_or_dgp( Model,vecReGasPar )
          return - loglikelValue
     end
     #Run the optimization
@@ -588,7 +588,7 @@ function forecastEvalGasNetDirBin1(obsNet_T::BitArray{3}, gasParEstOnTrain::Arra
 
     @show Nlinksnnc =sum(noDiagIndnnc)
     # forecast fitnesses using Gas parameters and observations
-    foreFit,~ = score_driven_filter( DynNets.GasNetModelDirBin1(degsIO_T),[gasParEstOnTrain[1];gasParEstOnTrain[2];gasParEstOnTrain[3]])
+    foreFit,~ = score_driven_filter_or_dgp( DynNets.GasNetModelDirBin1(degsIO_T),[gasParEstOnTrain[1];gasParEstOnTrain[2];gasParEstOnTrain[3]])
 
     TRoc = Ttest-1
     #storage variables
@@ -694,7 +694,7 @@ function multiStepsForecastExpMat( Model::GasNetModelDirBin1,obsNet_T::BitArray{
       N2 = length(gasParEstOnTrain[1]);N = round(Int,N2/2)
       T = length(obsNet_T[1,1,:])
       degsIO_T = [sumSq(obsNet_T,2);sumSq(obsNet_T,1)]
-      foreFitGas1,~ = DynNets.score_driven_filter( Model,
+      foreFitGas1,~ = DynNets.score_driven_filter_or_dgp( Model,
       [gasParEstOnTrain[1];gasParEstOnTrain[2];gasParEstOnTrain[3]])
       Ttest = T-Ttrain
 

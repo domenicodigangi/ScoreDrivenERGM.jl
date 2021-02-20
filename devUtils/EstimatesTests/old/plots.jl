@@ -4,7 +4,7 @@ using StatPlots
 using Plots
 using Distributions
 plotly()
-using JLD
+using JLD2
 
 
 function Bias(A::Array{<:Real,2},B::Array{<:Real,2})

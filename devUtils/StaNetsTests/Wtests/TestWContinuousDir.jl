@@ -67,7 +67,7 @@ relErrSam = maximum(abs.(( strGroupsSam - strGroups )./strGroups )[strGroups.!=0
 absErrZeros = maximum(abs.(( strGroupsSam - strGroups ) )[strGroups.==0])
 
 ## Test sui dati
-using JLD
+using JLD2
  load_fold =   "/home/Domenico/Dropbox/Dynamic_Networks/data/emid_data/juliaFiles/"
 # file_name = "Weekly_eMid_Estimates.jld"
 # load_path = load_fold*file_name#

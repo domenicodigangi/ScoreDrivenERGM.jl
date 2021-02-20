@@ -1,5 +1,5 @@
 
-using JLD, Distributions, Plots, StatPlots, AverageShiftedHistograms, DynNets
+using JLD2, Distributions, Plots, StatPlots, AverageShiftedHistograms, DynNets
  plotly()
 
 
@@ -67,7 +67,7 @@ end
     vecParDgp =  [simPar_1[indT,n,:]; simPar_2[indT,n];  simPar_3[indT,n]]
 
     GroupIndsEst  = groupsIndsEst ;
-    tmpParFil[:,:,n] =   DynNets.score_driven_filterAndLikeliood(tmpModelEst,vecParEst,
+    tmpParFil[:,:,n] =   DynNets.score_driven_filter_or_dgpAndLikeliood(tmpModelEst,vecParEst,
                                                 degsT = obsT,
                                                 groupsInds = GroupIndsEst )[1]
 
@@ -86,7 +86,7 @@ end
 
 
     GroupIndsDgp =  groupsIndsEst
-    tmpParDgp[:,:,n] = DynNets.score_driven_filterAndLikeliood(tmpModelDgp,vecParDgp,
+    tmpParDgp[:,:,n] = DynNets.score_driven_filter_or_dgpAndLikeliood(tmpModelDgp,vecParDgp,
                                                 degsT = obsT,
                                                 groupsInds = GroupIndsDgp )[1]
 

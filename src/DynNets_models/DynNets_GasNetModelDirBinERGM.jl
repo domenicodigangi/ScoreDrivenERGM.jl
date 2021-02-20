@@ -224,7 +224,7 @@ function estimate(model::T where T<: GasNetModelDirBinErgmPml, obsT; indTvPar::B
 
         oneInADterms  = (StaticNets.maxLargeVal + vecUnPar[1])/StaticNets.maxLargeVal
 
-        foo, target_fun_val_T, foo1 = score_driven_filter( model,  vecReGasParAll, indTvPar; obsT = obsT, vConstPar =  vecConstPar, ftot_0 = ftot_0 .* oneInADterms)
+        foo, target_fun_val_T, foo1 = score_driven_filter_or_dgp( model,  vecReGasParAll, indTvPar; obsT = obsT, vConstPar =  vecConstPar, ftot_0 = ftot_0 .* oneInADterms)
 
         #println(vecReGasPar)
          return - target_fun_val_T
@@ -306,7 +306,7 @@ function A0_B0_est_for_white_cov_mat_obj_SD_filter_time_seq(model::GasNetModelDi
 
             oneInADterms  = (StaticNets.maxLargeVal + vecSDParRe[1])/StaticNets.maxLargeVal
 
-            fVecT_filt, target_fun_val_T, ~ = DynNets.score_driven_filter( model,  vecSDParRe, indTvPar; obsT = obsT[1:t-1], vConstPar =  vConstPar, ftot_0 = ftot_0 .* oneInADterms)
+            fVecT_filt, target_fun_val_T, ~ = DynNets.score_driven_filter_or_dgp( model,  vecSDParRe, indTvPar; obsT = obsT[1:t-1], vConstPar =  vConstPar, ftot_0 = ftot_0 .* oneInADterms)
         
             return - DynNets.target_function_t(model, obsT[t-1], fVecT_filt[:,end])
         end
@@ -326,7 +326,7 @@ function A0_B0_est_for_white_cov_mat_obj_SD_filter_time_seq(model::GasNetModelDi
 
     #     oneInADterms  = (StaticNets.maxLargeVal + vecSDParRe[1])/StaticNets.maxLargeVal
 
-    #     fVecT_filt, target_fun_val_T, ~ = DynNets.score_driven_filter( model,  vecSDParRe, indTvPar; obsT = obsT, vConstPar =  vConstPar, ftot_0 = ftot_0 .* oneInADterms)
+    #     fVecT_filt, target_fun_val_T, ~ = DynNets.score_driven_filter_or_dgp( model,  vecSDParRe, indTvPar; obsT = obsT, vConstPar =  vConstPar, ftot_0 = ftot_0 .* oneInADterms)
 
     #     return - target_fun_val_T
     # end
@@ -407,7 +407,7 @@ function conf_bands_par_uncertainty_naive(model::GasNetModelDirBinErgmPml, obsT,
 
             vecSDParRe, vConstPar = divide_SD_par_from_const(model, indTvPar, vResPar)
 
-            distribFilteredSD[n, :, :] , ~, ~ = DynNets.score_driven_filter( model,  vecSDParRe, indTvPar; obsT = obsT, ftot_0=ftot_0, vConstPar=vConstPar)
+            distribFilteredSD[n, :, :] , ~, ~ = DynNets.score_driven_filter_or_dgp( model,  vecSDParRe, indTvPar; obsT = obsT, ftot_0=ftot_0, vConstPar=vConstPar)
         end
 
         # Compute confidence bands as sequence of quantiles for each tine
@@ -453,7 +453,7 @@ function var_filtered_par_from_filt_and_par_unc(model::GasNetModelDirBinErgmPml,
 
             vecSDParRe, vConstPar = divide_SD_par_from_const(model, indTvPar, vResPar)
 
-            distribFilteredSD[n, :, :] , ~, ~ = DynNets.score_driven_filter( model,  vecSDParRe, indTvPar; obsT = obsT, ftot_0=ftot_0, vConstPar=vConstPar)
+            distribFilteredSD[n, :, :] , ~, ~ = DynNets.score_driven_filter_or_dgp( model,  vecSDParRe, indTvPar; obsT = obsT, ftot_0=ftot_0, vConstPar=vConstPar)
 
             BMatSD, AMatSD = divide_in_B_A_mats_as_if_all_TV(model, indTvPar, vResPar)
 
@@ -510,7 +510,7 @@ function estimate_filter_and_conf_bands(model::GasNetModelDirBinErgmPml, A_T_dgp
 
     vEstSdResPar = array2VecGasPar(model, estSdResPar, indTvPar)
 
-    fVecT_filt , target_fun_val_T, sVecT_filt = DynNets.score_driven_filter(model,  vEstSdResPar, indTvPar; obsT = obsT, ftot_0 = ftot_0)
+    fVecT_filt , target_fun_val_T, sVecT_filt = DynNets.score_driven_filter_or_dgp(model,  vEstSdResPar, indTvPar; obsT = obsT, ftot_0 = ftot_0)
     
     vecUnParAll = unrestrict_all_par(model, indTvPar, vEstSdResPar)
 

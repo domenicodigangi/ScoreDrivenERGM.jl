@@ -1,7 +1,7 @@
 
 # Sample a gas fitness DGP and estimate the parameters for different lenghts of
 # time series
-using JLD
+using JLD2
 using Hwloc
 
 counts = Hwloc.histmap(Hwloc.topology_load())

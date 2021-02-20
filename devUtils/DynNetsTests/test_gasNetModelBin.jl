@@ -43,7 +43,7 @@ p1 = contour(corrMat,fill=true,yflip = true, title = "Scaling = " *scoreScal )
 #     plot(ppar,pdegs,layout = (2,1),legend=:none,size = (1200,600))
 #
 #     vresPar = [Mod.Par[1];Mod.Par[2];Mod.Par[3]]
-#     Fitness_T_filt, tmp = score_driven_filter( Mod, vresPar)
+#     Fitness_T_filt, tmp = score_driven_filter_or_dgp( Mod, vresPar)
 #     ppar_filt = plot(Fitness_T_filt,title = "$(round.(squeeze(mean(Fitness_T_filt,1),1),1))  $(round.(UMdgp,1))")
 #     plot(ppar,ppar_filt ,layout = (2,1),legend=:none,size = (1200,600))
 
@@ -66,7 +66,7 @@ estOutTarg = estimateTargeting(Mod)
 Mod_estTarg = GasNetModelBin1(Mod.obsT,estOutTarg[1],groupsInd,scoreScal)
 
 vresParTarg = [Mod_estTarg.Par[1];Mod_estTarg.Par[2];Mod_estTarg.Par[3]]
-Fitness_T_estTarg, tmp = score_driven_filter( Mod, vresParTarg)
+Fitness_T_estTarg, tmp = score_driven_filter_or_dgp( Mod, vresParTarg)
 
 ppar = plot(Fitness_T_estTarg,title = "$(round.(squeeze(mean(Fitness_T_estTarg,1),1),1))  $(round.(UMdgp,1))")
 pdegs = plot(degs_T,title = "$(dgpdegs)  $(round.(squeeze(mean(degs_T,1),1),1))")
@@ -78,7 +78,7 @@ estOut = estimate(Mod)
 Mod_est = GasNetModelBin1(Mod.obsT,estOut[1],groupsInd,scoreScal)
 
 vresPar = [Mod_est.Par[1];Mod_est.Par[2];Mod_est.Par[3]]
-Fitness_T_est, tmp = score_driven_filter( Mod, vresPar)
+Fitness_T_est, tmp = score_driven_filter_or_dgp( Mod, vresPar)
 
 ppar = plot(Fitness_T_est,title = "$(round.(squeeze(mean(Fitness_T_est,1),1),1))  $(round.(UMdgp,1))")
 pdegs = plot(degs_T,title = "$(dgpdegs)  $(round.(squeeze(mean(degs_T,1),1),1))")
@@ -88,7 +88,7 @@ plot(ppar,pdegs,layout = (2,1),legend=:none,size = (1200,600))
 #
 
 ##
-using JLD
+using JLD2
 
 N_est = 300
 Tvals =  [1000]
@@ -108,7 +108,7 @@ estDataT = @load(save_path,groupsIndsEst,groupsIndsDgp,allObs,
         simPar_1,simPar_2,simPar_3,estPar_1,estPar_2,estPar_3,est_conv_flag,est_times)
 
 vestPar = [estPar_1[1,n,:]; estPar_2[n];estPar_3[n]]
-Fitness_Tfil ,like= score_driven_filter( Mod,vestPar)
+Fitness_Tfil ,like= score_driven_filter_or_dgp( Mod,vestPar)
 
 
     pparfil = plot(Fitness_Tfil)
@@ -116,7 +116,7 @@ Fitness_Tfil ,like= score_driven_filter( Mod,vestPar)
     plot(ppar,pparfil,layout = (2,1),legend=:none,size = (1200,600))
 ##
 vResGasPar = [Mod.Par[1];Mod.Par[2];Mod.Par[3];]
-Fitness_Tfil ,like= score_driven_filter( Mod,vResGasPar)
+Fitness_Tfil ,like= score_driven_filter_or_dgp( Mod,vResGasPar)
 
 
     pparfil = plot(Fitness_Tfil)
