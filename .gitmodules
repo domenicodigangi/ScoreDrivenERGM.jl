@@ -1,6 +1,3 @@
-[submodule "src/ergm-r"]
-	path = src/ergm-r
-	url = https://github.com/domenicodigangi/ergm.git
 [submodule "external/r-ergm"]
 	path = external/r-ergm
 	url = https://github.com/domenicodigangi/ergm.git
