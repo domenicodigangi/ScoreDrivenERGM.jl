@@ -14,10 +14,10 @@ using RCall
 function clean_start_RCall()
     # Clean R enviroment and load needed packages
     R"rm(list = ls())
-    library(ergm)
-    library(sna)
-    library(coda)
-    library(network)
+    # library(ergm)
+    # library(network)
+    # library(sna)
+    # library(coda)
     sessionInfo()"
    R"set.seed(0)"
 end
@@ -29,7 +29,14 @@ function __init__()
 
     R"""local({r <- getOption("repos")
         r["CRAN"] <- "http://cran.r-project.org" 
-        options(repos=r)})"""
+        options(repos=r)})
+        
+        
+        require("ergm")
+        require("network")
+        
+        
+        """
 
     clean_start_RCall()
 end
