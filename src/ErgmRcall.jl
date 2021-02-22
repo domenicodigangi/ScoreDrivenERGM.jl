@@ -12,32 +12,44 @@ using RCall
 
 
 function clean_start_RCall()
-    # Clean R enviroment and load needed packages
+    # Clean R enviroment 
     R"rm(list = ls())
-    # library(ergm)
-    # library(network)
-    # library(sna)
-    # library(coda)
     sessionInfo()"
    R"set.seed(0)"
 end
 export clean_start_RCall
 
 
-function __init__()
-    R"""options(warn=-1) """
+function install_and_load_R_package(pkgName::String)
+    R"""
+        if( !( " $pkgName " %in% rownames(installed.packages())) ){
+            install.packages("$pkgName")
+        }
+
+        library("$pkgName")
+    """
+
+end
+
+function init_R_settings()
+    # R"""options(warn=-1) """
 
     R"""local({r <- getOption("repos")
         r["CRAN"] <- "http://cran.r-project.org" 
         options(repos=r)})
-        
-        
-        require("ergm")
-        require("network")
-        
-        
         """
+end
 
+function __init__()
+
+    init_R_settings()    
+    # install_and_load_R_package("sna")
+    # install_and_load_R_package("coda")
+    # install_and_load_R_package("network")
+    # install_and_load_R_package("ergm")
+    R"""library("network")"""
+    R"""library("ergm")"""
+    
     clean_start_RCall()
 end
 
