@@ -243,7 +243,7 @@ function score_driven_filter_or_dgp( model::T where T<: GasNetModelDirBin0Rec0, 
     #fVecT = hcat(fVecT[:, 2:end], ftot_tp1)
 
     if dgp
-        return fVecT::Array{Float64, 2}, A_T, sVecT, scalMatT
+        return fVecT::Array{<:Real, 2}, A_T, sVecT, scalMatT
     else
         return fVecT::Array{<:Real, 2}, logLikeVecT::Vector{<:Real}, sVecT::Array{<:Real,2}, scalMatT::Array{<:Real, 3}
     end
@@ -638,19 +638,25 @@ function dgp_misspecified(model::GasNetModelDirBin0Rec0, dgpType, N, T;  minAlph
             α_β_parDgpT[1,:] = randSteps(α_β_minMax[1], α_β_minMax[2], Nsteps1,T)
             α_β_parDgpT[2,:] = randSteps(η_0_minMax[1], η_0_minMax[2], Nsteps1,T)
         elseif dgpType=="AR"
-            α_β_minMax = zeros(2)
             meanValAlpha = (minAlpha+maxAlpha)/2
             meanValBeta = (minBeta+maxBeta)/2
-            α_β_parDgpT[1,:] = dgpAR(meanValAlpha,B,sigma,T; minMax = α_β_minMax )
-            α_β_parDgpT[2,:] = dgpAR(meanValBeta,B,sigma,T; minMax = α_β_minMax )
+
+            θ_η_UM = alpha_beta_to_theta_eta(meanValAlpha, meanValBeta, N)
+
+            θ_η_parDgpT = zeros(Real,2,T)
+
+            θ_η_parDgpT[1,:] = dgpAR(θ_η_UM[1],B,sigma,T )
+            θ_η_parDgpT[2,:] = dgpAR(θ_η_UM[2],B,sigma,T )
+
+            break
+
         end
 
         if dgpType == "SD"
-            α_β_minMax = zeros(2)
             meanValAlpha = (minAlpha+maxAlpha)/2
             meanValBeta = (minBeta+maxBeta)/2
     
-            UM = [meanValAlpha, meanValBeta]
+            UM = alpha_beta_to_theta_eta(meanValAlpha, meanValBeta, N)
 
             model_mle = GasNetModelDirBin0Rec0_mle()
             Logging.@warn(" the score driven DGP used is the Maximum Likelihood one. PML is too slow")
@@ -660,6 +666,7 @@ function dgp_misspecified(model::GasNetModelDirBin0Rec0, dgpType, N, T;  minAlph
 
             vResParDgp[2:3:end] .= B
             vResParDgp[3:3:end].= A
+            vResParDgp = Real.(vResParDgp)
 
             fVecT, ~, ~ = DynNets.score_driven_filter_or_dgp( model_mle, N, vResParDgp, indTvPar; dgpNT = (N,T))
 
@@ -693,7 +700,7 @@ end
 
 function list_example_dgp_settings_for_paper(model::GasNetModelDirBin0Rec0)
 
-    dgpSetAR = (type = "AR", opt = (B =0.98, sigma = 0.0005))
+    dgpSetAR = (type = "AR", opt = (B =0.98, sigma = 0.01))
 
     dgpSetSIN = (type = "SIN", opt = ( nCycles=1.5))
 
@@ -1243,10 +1250,10 @@ end
 
 function estimate_filter_and_conf_bands(model::GasNetModelDirBin0Rec0, A_T_dgp, quantilesVals::Vector{Vector{Float64}}; indTvPar = model.indTvPar, parDgpT=zeros(2,2), plotFlag=false, parUncMethod = "WHITE-MLE")
     
-  
-    obsT, vEstSdResPar, fVecT_filt, ~, ~, ~, conv_flag, ftot_0 = estimate_and_filter(model, A_T_dgp; indTvPar = indTvPar)
+    N = size(A_T_dgp)[1]
+    obsT, vEstSdResPar, fVecT_filt, ~, ~, conv_flag, ftot_0 = estimate_and_filter(model, A_T_dgp; indTvPar = indTvPar)
     
-    fVecT_filt, confBandsFiltPar, confBandsPar, errFlag, mvSDUnParEstCov, distribFilteredSD = conf_bands_given_SD_estimates(model, obsT, vEstSdResPar, ftot_0, quantilesVals; indTvPar = indTvPar, parDgpT=parDgpT, plotFlag=plotFlag, parUncMethod = parUncMethod)
+    fVecT_filt, confBandsFiltPar, confBandsPar, errFlag, mvSDUnParEstCov, distribFilteredSD = conf_bands_given_SD_estimates(model, obsT, N, vEstSdResPar, ftot_0, quantilesVals; indTvPar = indTvPar, parDgpT=parDgpT, plotFlag=plotFlag, parUncMethod = parUncMethod)
 
     return obsT, vEstSdResPar, fVecT_filt, confBandsFiltPar, confBandsPar, errFlag
 
