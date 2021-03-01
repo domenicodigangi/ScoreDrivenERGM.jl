@@ -31,7 +31,7 @@ export minSmallVal
 
 include("./StaticNets_models/StaticNets_DirBin1.jl")
 include("./StaticNets_models/StaticNets_DirBin0Rec0.jl")
-include("./StaticNets_models/StaticNets_DirBinErgmPseudo.jl")
+include("./StaticNets_models/StaticNets_ErgmPML.jl")
 
 
 end

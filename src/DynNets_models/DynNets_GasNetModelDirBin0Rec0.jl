@@ -1,3 +1,4 @@
+import ..StaticNets:NetModelDirBin0Rec0, ergm_term_string
 
 abstract type GasNetModelDirBin0Rec0 <: GasNetModel end
 
@@ -83,7 +84,6 @@ function target_function_t(model::GasNetModelDirBin0Rec0_mle, obs_t, f_t)
 end
 
 
-
 function setOptionsOptim(model::T where T<: GasNetModelDirBin0Rec0)
     "Set the options for the optimization required in the estimation of the model.
     For the optimization use the Optim package."
@@ -121,35 +121,6 @@ function static_estimate(model::GasNetModelDirBin0Rec0_mle, statsT)
 end
 
 
-#region  Pseudologlikelihood SDERGM
-
-Base.@kwdef struct  GasNetModelDirBin0Rec0_pmle <: GasNetModelDirBin0Rec0
-     indTvPar :: BitArray{1} = trues(2) #  what parameters are time varying   ?
-     scoreScalingType::String = "HESS" # String that specifies the rescaling of the score. For a list of possible choices see function scalingMatGas
-end
+GasNetModelDirBin0Rec0_pmle() = SdErgmPml(ergm_term_string(NetModelDirBin0Rec0))
 export GasNetModelDirBin0Rec0_pmle
 
-
-name(x::GasNetModelDirBin0Rec0_pmle) = "GasNetModelDirBin0Rec0_pmle($(x.indTvPar), scal = $(x.scoreScalingType))"
-
-
-
-statsFromMat(Model::GasNetModelDirBin0Rec0_pmle, A ::Matrix{<:Real}) = StaticNets.change_stats(StaticNets.NetModelDirBin0Rec0(), A)
-
-
-function static_estimate(model::GasNetModelDirBin0Rec0_pmle, A_T)
-    staticPars = ErgmRcall.get_static_mple(A_T, "edges +  mutual")
-    return staticPars
-end
-
-
-function target_function_t(model::GasNetModelDirBin0Rec0_pmle, obs_t, par)
- 
-    changeStat, response, weights = ErgmRcall.decomposeMPLEmatrix(obs_t)
- 
-    pll = StaticNets.pseudo_loglikelihood_strauss_ikeda( StaticNets.NetModelDirBin0Rec0(), par, changeStat, response, weights)
-
-    return pll
-end
-
-#endregion

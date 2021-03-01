@@ -38,6 +38,8 @@ include("./DynNets_models/DynNets_Abstract_GasNetModel.jl")
 
 include("./DynNets_models/DynNets_GasNetModelDirBin1.jl")
 
+include("./DynNets_models/DynNets_SdErgmPml.jl")
+
 include("./DynNets_models/DynNets_GasNetModelDirBin0Rec0.jl")
 
 end

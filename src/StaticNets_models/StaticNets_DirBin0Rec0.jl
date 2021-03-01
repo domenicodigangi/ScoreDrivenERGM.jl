@@ -3,7 +3,8 @@ ERGM for directed networks with totan links and tortal reciprocated links as sta
 """
 struct  NetModelDirBin0Rec0 <: NetModel end
 
-NetModelDirBin0Rec0() =  NetModelDirBin0Rec0(ones(2), 10, zeros(2))
+
+ergm_term_string(x::NetModelDirBin0Rec0)  = "edges + mutual"
 
 
 type_of_obs(model::NetModelDirBin0Rec0) =  Array{Float64, 1}
@@ -47,7 +48,7 @@ function samplSingMatCan(Model::NetModelDirBin0Rec0, diadProbsVec::Array{<:Real,
         end
     end
     return out
- end
+end
 
 
 function sample_ergm(model::NetModelDirBin0Rec0, N, θ_0, η_0, nSample)
@@ -58,7 +59,6 @@ function sample_ergm(model::NetModelDirBin0Rec0, N, θ_0, η_0, nSample)
 
     return A_vec
 end
-
 
 
 function statsFromMat(Model::NetModelDirBin0Rec0, A ::Matrix{<:Real})

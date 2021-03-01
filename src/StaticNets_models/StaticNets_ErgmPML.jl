@@ -8,6 +8,8 @@ struct  NetModeErgmPml <: NetModel
 end
 export NetModeErgmPml
 
+NetModeErgmPml() = NetModeErgmPml("", false, 0)
+
 NetModeErgmPml(ergmTermsString, isDirected)  = NetModeErgmPml(ergmTermsString, isDirected, 1 + count(i->(i=='+'), ergmTermsString))
 
 name(x::NetModeErgmPml) = "NetModeErgmPml($(x.ergmTermsString))"
@@ -21,7 +23,7 @@ function change_stats(model::NetModeErgmPml, A::Matrix)
 end
 
 
-function pseudo_loglikelihood_strauss_ikeda(model::NetModeErgmPml, par, changeStat, response, weights)
+function pseudo_loglikelihood_strauss_ikeda(par, changeStat, response, weights)
     logit_P = sum(par.*changeStat', dims=1)      
     P = inv_logit.(logit_P)    
     logPVec = log.([response[i] == zero(response[i]) ? 1 - P[i] : P[i] for i=1:length(response) ])
