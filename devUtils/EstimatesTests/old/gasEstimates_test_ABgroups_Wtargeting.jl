@@ -66,7 +66,7 @@ sim_W = simUncMeans.*(1-sim_B[groupsIndsDgp])
         simPar_3[ind,n,1:GBAdgp] = sim_A
         simPar_2[ind,n,1:GBAdgp] = sim_B
         simPar_1[ind,n,:] = sim_W
-        Model2Sample = DynNets.GasNetModelBin1(ones(T,N),[sim_W,sim_B,sim_A],
+        Model2Sample = DynNets.GasNetModel1(ones(T,N),[sim_W,sim_B,sim_A],
                                                     groupsIndsDgp)
 
 
@@ -76,7 +76,7 @@ sim_W = simUncMeans.*(1-sim_B[groupsIndsDgp])
         ParTvDgpTmp[:,:,n] = fit_T
         ObsTmp[:,:,n] = sampleDegsT
 
-        Model2Est =  DynNets.GasNetModelBin1(sampleDegsT,[zeros(N),zeros(GBAest),zeros(GBAest)],
+        Model2Est =  DynNets.GasNetModel1(sampleDegsT,[zeros(N),zeros(GBAest),zeros(GBAest)],
                                                     groupsIndsEst)
         #estimate
         useStartVal ?   start_val = [sim_W, sim_B, sim_A] : start_val = zeros(3,3)

@@ -56,12 +56,12 @@ est_flag = SharedArray{Bool,2}(N_ind,N_est)
         simPar_3[ind,n,1:GBAdgp] = sim_A
         simPar_2[ind,n,1:GBAdgp] = sim_B
         simPar_1[ind,n,1:GWdgp] = sim_W
-        Model2Sample = DynNets.GasNetModelBin1(ones(T,N),[sim_W,sim_B,sim_A],
+        Model2Sample = DynNets.GasNetModel1(ones(T,N),[sim_W,sim_B,sim_A],
                                                     groupsIndsDgp)
         Y_T,fit_T  =  DynNets.sampl(Model2Sample,T)
         sampleDegsT = squeeze(sum(Y_T,2),2)
         allObs[:,1:T,ind,n] = sampleDegsT'
-        Model2Est =  DynNets.GasNetModelBin1(sampleDegsT,[zeros(GWest),zeros(GBAest),zeros(GBAest)],
+        Model2Est =  DynNets.GasNetModel1(sampleDegsT,[zeros(GWest),zeros(GBAest),zeros(GBAest)],
                                                     groupsIndsEst)
         #estimate
         useStartVal ?   start_val = [sim_W, sim_B, sim_A] : start_val = zeros(3,3)

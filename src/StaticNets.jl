@@ -11,8 +11,7 @@ using ..ErgmRcall
 
 ## STATIC NETWORK MODEL
 abstract type NetModel end
-abstract type NetModelW <: NetModel end
-abstract type NetModelDirBin <: NetModelBin end
+abstract type NetModelDirBin <: NetModel end
 
 #constants
 targetErrValStaticNets = 1e-2

@@ -26,8 +26,8 @@ estDataT = @load(save_path,groupsIndsEst,ObsAllT,ParTvDgpAllT,simPar_1,simPar_2,
 
 RavgMSE(A,B) = sqrt.(mean((A .- B).^2,1))
 AvgBias(A,B) = mean((A .- B),1)
-tmpModelEst = DynNets.GasNetModelBin1(zeros(10,10),[ones(N),ones(GBAest),ones(GBAest)],groupsIndsEst)
-tmpModelDgp = DynNets.GasNetModelBin1(zeros(10,10),[ones(N),ones(GBAdgp),ones(GBAdgp)],groupsIndsEst)
+tmpModelEst = DynNets.GasNetModel1(zeros(10,10),[ones(N),ones(GBAest),ones(GBAest)],groupsIndsEst)
+tmpModelDgp = DynNets.GasNetModel1(zeros(10,10),[ones(N),ones(GBAdgp),ones(GBAdgp)],groupsIndsEst)
 
 rmseTotGas = zeros(N_est,N,N_ind)
 biasTotGas = zeros(N_est,N,N_ind)
@@ -71,7 +71,7 @@ end
                                                 degsT = obsT,
                                                 groupsInds = GroupIndsEst )[1]
 
-    fitSnap = DynNets.estSnapSeq(DynNets.GasNetModelBin1(obsT)) # sequence of snapshots estimate
+    fitSnap = DynNets.estSnapSeq(DynNets.GasNetModel1(obsT)) # sequence of snapshots estimate
     # remove the infinites
     for i=1:5
         infInd = find(.!isfinite.(fitSnap))

@@ -1,27 +1,27 @@
-using RCall
-ErgmRcall.clean_start_RCall()
-R"""options(warn=-1) """
-
-
 """
 A generic ERGM for directed networks to be estimated using the pseudo likelihood 
 """
-struct  NetModelDirBinErgmPml <: NetModelDirBin 
+struct  NetModeErgmPml <: NetModel 
     ergmTermsString::String # needs to be compatible with R ergm package notation and names
+    isDirected::Bool
     nErgmPar::Int
 end
-export NetModelDirBinErgmPml
+export NetModeErgmPml
 
-NetModelDirBinErgmPml(ergmTermsString)  = NetModelDirBinErgmPml(fixes, 1 + count(i->(i=='+'), "fixes"))
+NetModeErgmPml(ergmTermsString, isDirected)  = NetModeErgmPml(ergmTermsString, isDirected, 1 + count(i->(i=='+'), ergmTermsString))
 
-name(x::NetModelDirBinErgmPml) = "NetModelDirBinErgmPml($(x.ergmTermsString))"
+name(x::NetModeErgmPml) = "NetModeErgmPml($(x.ergmTermsString))"
 
-function change_stats(model::NetModelDirBinErgmPml, A::Matrix)
+
+type_of_obs(model::NetModeErgmPml) =  Array{Float64, 2}
+
+
+function change_stats(model::NetModeErgmPml, A::Matrix)
     ErgmRcall.get_change_stats(A,model.ergmTermsString)
 end
 
 
-function pseudo_loglikelihood_strauss_ikeda(model::NetModelDirBinErgmPml, par, changeStat, response, weights)
+function pseudo_loglikelihood_strauss_ikeda(model::NetModeErgmPml, par, changeStat, response, weights)
     logit_P = sum(par.*changeStat', dims=1)      
     P = inv_logit.(logit_P)    
     logPVec = log.([response[i] == zero(response[i]) ? 1 - P[i] : P[i] for i=1:length(response) ])
@@ -30,4 +30,6 @@ function pseudo_loglikelihood_strauss_ikeda(model::NetModelDirBinErgmPml, par, c
 end
 
 
-estimate(model::NetModelDirBinErgmPml, A::Matrix) = ErgmRcall.get_mple(model.ergmTermsString, A)
+estimate(model::NetModeErgmPml, A::Matrix) = ErgmRcall.get_mple(model.ergmTermsString, A)
+
+

@@ -1,19 +1,19 @@
 using Plots, BenchmarkTools
 plotly()
 
-Model = fooGasNetModelBin1
+Model = fooGasNetModel1
 T = 300
 N=10
 GBA = 1
 GW = 2#N#N#1# N#N # 20
 groupsInds = [Utilities.distributeAinVecN(Array{Int64}(1:GW),N), Utilities.distributeAinVecN(Array{Int64}(1:GBA),GW)]
 
-UMdgp,dgpdegs = linSpacedPar(fooGasNetModelBin1,N; NgroupsW = GW)
+UMdgp,dgpdegs = linSpacedPar(fooGasNetModel1,N; NgroupsW = GW)
 Bdgp = 0.9*ones(GBA)
 Adgp = 0.1*ones(GBA)
 Wdgp = UMdgp.*(1-Bdgp[groupsInds[2]])
 scoreScal = "FISHER-EWMA"#""#
-Mod = GasNetModelBin1(ones(2,2),[Wdgp , Bdgp, Adgp],groupsInds,scoreScal)
+Mod = GasNetModel1(ones(2,2),[Wdgp , Bdgp, Adgp],groupsInds,scoreScal)
 Mod,Y_T,Fitness_T = sampl(Mod,T)
 degs_T = squeeze(sum(Y_T,2),2)
 #time = @elapsed  out = estimate(Mod)
@@ -63,7 +63,7 @@ estOutSS = estimateSnapSeq(Mod)
 #println(Mod.obsT[110,:])
 
 estOutTarg = estimateTargeting(Mod)
-Mod_estTarg = GasNetModelBin1(Mod.obsT,estOutTarg[1],groupsInd,scoreScal)
+Mod_estTarg = GasNetModel1(Mod.obsT,estOutTarg[1],groupsInd,scoreScal)
 
 vresParTarg = [Mod_estTarg.Par[1];Mod_estTarg.Par[2];Mod_estTarg.Par[3]]
 Fitness_T_estTarg, tmp = score_driven_filter_or_dgp( Mod, vresParTarg)
@@ -75,7 +75,7 @@ plot(ppar,pdegs,layout = (2,1),legend=:none,size = (1200,600))
 ## Test estimate
 
 estOut = estimate(Mod)
-Mod_est = GasNetModelBin1(Mod.obsT,estOut[1],groupsInd,scoreScal)
+Mod_est = GasNetModel1(Mod.obsT,estOut[1],groupsInd,scoreScal)
 
 vresPar = [Mod_est.Par[1];Mod_est.Par[2];Mod_est.Par[3]]
 Fitness_T_est, tmp = score_driven_filter_or_dgp( Mod, vresPar)

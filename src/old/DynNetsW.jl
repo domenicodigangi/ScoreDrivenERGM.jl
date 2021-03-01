@@ -11,7 +11,7 @@ using ForwardDiff
 abstract type GasNetModel end
 abstract type GasNetModelW <: GasNetModel end
 abstract type GasNetModelWcount <: GasNetModelW end
-abstract type GasNetModelBin <: GasNetModel end
+abstract type GasNetModel <: GasNetModel end
 
 #constants
 

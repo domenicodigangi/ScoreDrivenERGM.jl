@@ -83,7 +83,7 @@ plot(tmpAsh)
 ## Test Target Estimate
 
 estOutTarg = estimateTargeting(Mod)
-Mod_estTarg = GasNetModelBin1(Mod.obsT,estOutTarg[1],groupsInd,scoreScal)
+Mod_estTarg = GasNetModel1(Mod.obsT,estOutTarg[1],groupsInd,scoreScal)
 
 vresParTarg = [Mod_estTarg.Par[1];Mod_estTarg.Par[2];Mod_estTarg.Par[3]]
 Fitness_T_estTarg, tmp = score_driven_filter_or_dgp( Mod, vresParTarg)
@@ -95,7 +95,7 @@ plot(ppar,pdegs,layout = (2,1),legend=:none,size = (1200,600))
 ## Test estimate
 
 estOut = estimate(Mod)
-Mod_est = GasNetModelBin1(Mod.obsT,estOut[1],groupsInds,scoreScal)
+Mod_est = GasNetModel1(Mod.obsT,estOut[1],groupsInds,scoreScal)
 
 vresPar = [Mod_est.Par[1];Mod_est.Par[2];Mod_est.Par[3]]
 Fitness_T_est, tmp = score_driven_filter_or_dgp( Mod, vresPar)

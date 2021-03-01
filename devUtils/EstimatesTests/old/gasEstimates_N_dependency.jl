@@ -43,7 +43,7 @@ real_B = SharedArray{Float64}(zeros(N_N,N_est,Nmax))
 
         degsT = squeeze(sum(Y_T,2),2)
 
-        model_data = DynNets.GasNetModelBin1(degsT,[zeros(i)for i in [N,NTV,NTV]], indTvPars)
+        model_data = DynNets.GasNetModel1(degsT,[zeros(i)for i in [N,NTV,NTV]], indTvPars)
         #estimate
         est_times[ind,n] = @elapsed hat_pars,hat_inds,conv_flag = DynNets.estimate(model_data)
         est_w[ind,n,1:N] = hat_pars[1]

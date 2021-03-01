@@ -29,28 +29,16 @@ using ..ErgmRcall
 using ..StaticNets
 
 
-abstract type GasNetModel end
-abstract type GasNetModelBin <: GasNetModel end
-abstract type GasNetModelDirBin0Rec0 <: GasNetModel end
-
 
 #constants
-targetErrValDynNets = 0.01
-
-#Relations between Static and Dynamic Models]
-identify(Model::GasNetModel,UnPar::Array{<:Real,1}, idType ) =
-    StaticNets.identify(StaModType(Model),UnPar;idType = idType)
-
-number_ergm_par(model::T where T <:GasNetModel) = length(model.indTvPar)
+const targetErrValDynNets = 0.01
 
 
-include("./DynNets_models/DynNets_SDModelsUtils.jl")
+include("./DynNets_models/DynNets_Abstract_GasNetModel.jl")
 
 include("./DynNets_models/DynNets_GasNetModelDirBin1.jl")
 
 include("./DynNets_models/DynNets_GasNetModelDirBin0Rec0.jl")
-
-include("./DynNets_models/DynNets_GasNetModelDirBinERGM.jl")
 
 end
 

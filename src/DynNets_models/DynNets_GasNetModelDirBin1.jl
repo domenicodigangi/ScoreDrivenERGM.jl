@@ -1,6 +1,6 @@
 #DIRECTED NETWORKS------------
 # --------------------------Sender Receiver Effect
-struct  GasNetModelDirBin1 <: GasNetModelBin
+struct  GasNetModelDirBin1 <: GasNetModel
      """ A Logistic Gas model for Directed binary networks and probability depending only
              on time varying parameters.
              ''p^{(t)}_{ij}  = logistic( theta^{(t)}_i + theta^{(t)}_j)''

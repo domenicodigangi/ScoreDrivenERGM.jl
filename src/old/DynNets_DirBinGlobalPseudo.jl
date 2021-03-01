@@ -1,6 +1,6 @@
 #-------------------------- ergm pseudo likelihood
 
-struct  GasNetModelDirBinGlobalPseudo# <: GasNetModelBin
+struct  GasNetModelDirBinGlobalPseudo# <: GasNetModel
      """ A gas model based on pseudolikelihood (as objective function) for
             Directed binary networks and probability depending on a generic vector
             of global statistics each associated with a time varying parameters.
