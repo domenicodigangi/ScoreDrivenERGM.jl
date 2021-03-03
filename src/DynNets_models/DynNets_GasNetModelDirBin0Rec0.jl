@@ -142,7 +142,7 @@ function updatedGasPar( model::T where T<: GasNetModelDirBin0Rec0, obs_t, ftot_t
     if model.scoreScalingType =="HESS"
         I_updt = -hess_tot_t
     end
-    ewmaWeight = 0.95
+    ewmaWeight = 0.99
     I_t = ewmaWeight.*I_updt .+ (1-ewmaWeight).*I(size(I_updt)[1])
 
     f_t = ftot_t[indTvPar] #Time varying ergm parameters
@@ -700,7 +700,7 @@ end
 
 function list_example_dgp_settings_for_paper(model::GasNetModelDirBin0Rec0)
 
-    dgpSetAR = (type = "AR", opt = (B =0.98, sigma = 0.01))
+    dgpSetAR = (type = "AR", opt = (B =0.98, sigma = 0.002))
 
     dgpSetSIN = (type = "SIN", opt = ( nCycles=1.5))
 
@@ -1039,7 +1039,7 @@ function conf_bands_buccheri(model::GasNetModelDirBin0Rec0, obsT, indTvPar, fVec
         
                 # add filtering and parameter unc
                 diff = a_t_vec[isfinite.(a_t_vec)] .- aHat_t
-                extr = quantile(diff, [0.01, 0.99])
+                extr = quantile(diff, [0.005, 0.995])
                 if extr[1] != extr[2]
                     diffNoOutl = filter(x->extr[1] < x < extr[2], diff)
                     parUncVarianceT[k, t] = var(diffNoOutl)
