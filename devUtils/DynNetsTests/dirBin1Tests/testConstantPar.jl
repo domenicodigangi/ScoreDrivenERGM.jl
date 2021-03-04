@@ -20,28 +20,6 @@ save_fold = "./data/estimatesTest/asympTest/"
  Nvals = [round(Int,length(dynDegsSam[i,1,1][:,1])/2) for i=1:size(dynDegsSam)[1]]
  Nsample = size(dynDegsSam)[2]
 
-#
-#
-# indN,s,d = 1,1,1
-#  T = length(dynDegsSam[1,1,1][1,:])
-#  N = Nvals[indN]
-#  close()
-#  groupsInds = [Int.(1:2N),Int.(ones(2N))];groupsInds[2][.!indsTVnodes[indN,s,d]] = 0
-#  degsIO_T = dynDegsSam[indN,s,d]
-#  modGasDirBin1 = DynNets.GasNetModelDirBin1(degsIO_T,[ zeros(2N) ,0.9  * ones(1), 0.01 * ones(1)],groupsInds,"FISHER-DIAG")
-#  statPar,~ = StaticNets.estimate(StaModType( modGasDirBin1); degIO = meanSq(degsIO_T,2) )
-#  xOrder = 1:2N #maximum(degsIO_T,2) - minimum(degsIO_T,2)# mean(degsIO_T,2)#
-#  # Score autocorrelation for static parameters estimates
-#  sIO_T,gradIO_T = gasScoreSeries(modGasDirBin1,repmat(statPar,1,T);obsT = degsIO_T)
-#  tmp = [autocor(Float64.(sIO_T[i,:]),[1])[1] for i=1:2N]
-#  plot(xOrder[indsTVnodes[indN,s,d]],tmp[indsTVnodes[indN,s,d]],"*r")
-#  plot(xOrder[!indsTVnodes[indN,s,d]],tmp[.!indsTVnodes[indN,s,d]],"*b")
-
-# tmp1 = Array{Float64,2}(1,100)
-# tmp1[1,:] = tmp
-# clustTmp = Clustering.kmeans(tmp1,2)
-# indTvClust = .!(clustTmp.assignments .==2)
-
 
 # Score autocorrelation for all TV parameters
 groupsInds = [Int.(1:2N),Int.(ones(2N))];
@@ -87,7 +65,7 @@ N2,T = size(degsIO_T[:,1:Ttrain]);N = round(Int,N2/2)
  close()
   groupsInds = [Int.(1:2N),Int.(ones(2N))];
   modGasDirBin1 = DynNets.GasNetModelDirBin1(degsIO_T[:,1:Ttrain],[ zeros(2N) ,0.9  * ones(1), 0.01 * ones(1)],groupsInds,"FISHER-DIAG")
-    statPar,~ = StaticNets.estimate(StaModType(fooGasNetModelDirBin1); degIO = meanSq(degsIO_T[:,1:Ttrain],2) )
+    statPar,~ = StaticNets.estimate((fooGasNetModelDirBin1); degIO = meanSq(degsIO_T[:,1:Ttrain],2) )
     xOrder = 1:2N #maximum(degsIO_T[:,1:Ttrain],2) - minimum(degsIO_T[:,1:Ttrain],2)# mean(degsIO_T[:,1:Ttrain],2)#
     # Score autocorrelation for static parameters estimates
     sIO_T,gradIO_T = gasScoreSeries(modGasDirBin1,repmat(statPar,1,T);obsT = degsIO_T[:,1:Ttrain])

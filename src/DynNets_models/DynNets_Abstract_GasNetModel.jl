@@ -2,22 +2,41 @@
 abstract type GasNetModel end
 
 
-identify(Model::GasNetModel,UnPar::Array{<:Real,1}, idType ) =
-    StaticNets.identify(StaModType(Model),UnPar;idType = idType)
+identify(model::GasNetModel,UnPar::Array{<:Real,1}, idType ) =
+    StaticNets.identify(model.staticModel, UnPar; idType = idType)
 
 number_ergm_par(model::T where T <:GasNetModel) = length(model.indTvPar)
 
-
-type_of_obs(model::GasNetModel) =  type_of_obs(model.staticModel)
-
+type_of_obs(model::GasNetModel) =  StaticNets.type_of_obs(model.staticModel)
 
 statsFromMat(model::GasNetModel, A ::Matrix{<:Real}) = StaticNets.statsFromMat(model.staticModel, A ::Matrix{<:Real}) 
 
-
-StaModType(model::GasNetModel) = typeof(model.staticModel)
-
 # options and conversions of parameters for optimization
-setOptionsOptim(model::GasNetModel) = setOptionsOptim(fooGasNetModelDirBin1)
+function setOptionsOptim(model::T where T<: GasNetModel)
+    "Set the options for the optimization required in the estimation of the model.
+    For the optimization use the Optim package."
+    tol = eps()*10
+    maxIter = 150
+    opt = Optim.Options(  g_tol = 1e-8,
+                     x_tol = tol,
+                     x_abstol = tol,
+                     x_reltol = tol,
+                     f_tol = tol,
+                     f_reltol = tol,
+                     f_abstol = tol,
+                     iterations = maxIter,
+                     show_trace = false,#false,#
+                     show_every=5)
+
+    algo = NewtonTrustRegion(; initial_delta = 0.1,
+                    delta_hat = 0.2,
+                    eta = 0.1,
+                    rho_lower = 0.25,
+                    rho_upper = 0.75)
+    algo = Newton(; alphaguess = LineSearches.InitialHagerZhang(),
+    linesearch = LineSearches.BackTracking())
+      return opt, algo
+end
 
 
 function array2VecGasPar(model::GasNetModel, ArrayGasPar, indTvPar :: BitArray{1})
@@ -175,14 +194,6 @@ end
 
 
 """
-To be filled in in case we want to explore conf bands in targeted models
-"""
-function target_unc_mean(UM, indTargPar)
-
-end
-
-
-"""
 Given the flag of constant parameters, a starting value for their unconditional means (their constant value, for those constant), return a starting point for the optimization
 """
 function starting_point_optim(model::T where T <:GasNetModel, indTvPar, UM; indTargPar =  falses(100))
@@ -226,6 +237,9 @@ function seq_of_obs_from_seq_of_mats(model::T where T <:GasNetModel, AT)
     end
     return obsT 
 end
+
+
+target_function_t(model::GasNetModel, obst_t, f_t) = error("Not yet defined")
 
 
 function target_function_t_grad(model::T where T<: GasNetModel, obs_t, f_t)
@@ -503,7 +517,6 @@ function score_driven_dgp( model::T where T<: GasNetModel, N, dgpNT, vResGasPar:
 end
 
 
-
 """
 Estimate the GAS and static parameters
 """
@@ -518,9 +531,9 @@ function estimate(model::T where T<: GasNetModel, N, obsT; indTvPar::BitArray{1}
     # UM is a vector with target values for dynamical ones. Parameters
     # if not given as input use the static estimates
     # single static estimate
-    staticPars = static_estimate(model, obsT)
 
-    if prod(UM.== 0 )&(!prod(.!indTvPar))
+    if prod(UM.== 0 )&(!prod(.!indTvPar))&(any(indTargPar))
+        staticPars = static_estimate(model, obsT)
         UM = staticPars
     end
 
@@ -628,7 +641,6 @@ function estimate(model::T where T<: GasNetModel, N, obsT; indTvPar::BitArray{1}
     return  arrayAllParHat, conv_flag,UM , ftot_0
    
 end
-
 
 
 #region Uncertainties filtered parameters

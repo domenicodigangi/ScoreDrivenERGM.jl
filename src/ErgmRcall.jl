@@ -187,36 +187,36 @@ function get_mple(A::Matrix{T} where T<:Integer, ergmTermsString::String)
 end
 export get_mple
 
-function get_static_mple(A_T::Array{T,3} where T<:Integer, ergmTermsString::String)
-    clean_start_RCall()
-    T = size(sampledMat_T_R )[3]
-    # For each t, sample the ERGM with parameters corresponding to the DGP at time t
-    # and run a single snapeshot estimate
-    @rput T
-    @rput A_T
-    reval("formula_ergm = net ~ "* ergmTermsString)
-    # store the sufficient statistics and change statistics in R
-    R"""
-    net <- network(A_T[,,1])
-    mple_t_R <- ergmMPLE(formula_ergm)   
-    dfPred = data.frame( mple_t_R$predictor )
-    dfWeights = data.frame( mple_t_R$weights )
-    dfResp = data.frame( mple_t_R$response )
-    for (t in 2:T){
-        net <- network(A_T[,,t])
-        mple_t_R <- ergmMPLE(formula_ergm)
-        dfPred <- rbind(dfPred, data.frame(mple_t_R$predictor))
-        dfWeights <- rbind(dfWeights, data.frame(mple_t_R$weights))
-        dfResp <- rbind(dfResp, data.frame(mple_t_R$response))
-        df <- rbind(df, data.frame(mple_t_R))
-        }
-        mple_static_R <- glm(dfResp$mple_t_R.response ~ . -1, data = dfPred, weights = dfWeights$mple_t_R.weights,family="binomial")$coefficients
-        """
+# function get_static_mple(A_T::Array{T,3} where T<:Integer, ergmTermsString::String)
 
-    mple_static = @rget mple_static_R;# tmp = Array{Array{Float64,2}}(T); for 
+#     T = size(A_T )[3]
+#     # For each t, sample the ERGM with parameters corresponding to the DGP at time t
+#     # and run a single snapeshot estimate
+#     @rput T
+#     @rput A_T
+#     reval("formula_ergm = net ~ "* ergmTermsString)
+#     # store the sufficient statistics and change statistics in R
+#     R"""
+#     net <- network(A_T[,,1])
+#     mple_t_R <- ergmMPLE(formula_ergm)   
+#     dfPred = data.frame( mple_t_R$predictor )
+#     dfWeights = data.frame( mple_t_R$weights )
+#     dfResp = data.frame( mple_t_R$response )
+#     for (t in 2:T){
+#         net <- network(A_T[,,t])
+#         mple_t_R <- ergmMPLE(formula_ergm)
+#         dfPred <- rbind(dfPred, data.frame(mple_t_R$predictor))
+#         dfWeights <- rbind(dfWeights, data.frame(mple_t_R$weights))
+#         dfResp <- rbind(dfResp, data.frame(mple_t_R$response))
+#         df <- rbind(df, data.frame(mple_t_R))
+#         }
+#         mple_static_R <- glm(dfResp$mple_t_R.response ~ . -1, data = dfPred, weights = dfWeights$mple_t_R.weights,family="binomial")$coefficients
+#         """
 
-    return mple_static
-end
+#     mple_static = @rget mple_static_R;# tmp = Array{Array{Float64,2}}(T); for 
+
+#     return mple_static
+# end
 
 function get_static_mple(changeStats_T::Array{T,2} where T<:Real, ergmTermsString::String)
     clean_start_RCall()

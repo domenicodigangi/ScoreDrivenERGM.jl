@@ -3,25 +3,45 @@
 using Test
 using ScoreDrivenERGM
 
+import ScoreDrivenERGM:StaticNets,DynNets
 
-model = ScoreDrivenERGM.DynNets.GasNetModelDirBin0Rec0_mle()
+
+model_pmle = DynNets.GasNetModelDirBin0Rec0_pmle()
+model_mle = DynNets.GasNetModelDirBin0Rec0_mle()
+
+model = model_mle
 
 # sample dgp
-listDgpSettigns = ScoreDrivenERGM.DynNets.list_example_dgp_settings(model)
+listDgpSettigns = DynNets.list_example_dgp_settings(model_mle)
 
 N = 100
-T = 300
-parDgpT = ScoreDrivenERGM.DynNets.sample_time_var_par_from_dgp(model, listDgpSettigns.dgpSetSD.type, N, T;  listDgpSettigns.dgpSetSD.opt...)
+T = 200
+parDgpT = DynNets.sample_time_var_par_from_dgp(model_mle, listDgpSettigns.dgpSetSD.type, N, T;  listDgpSettigns.dgpSetSD.opt...)
 
-A_T = ScoreDrivenERGM.DynNets.sample_mats_sequence(model, parDgpT,N)
+A_T = DynNets.sample_mats_sequence(model_mle, parDgpT,N)
 
-obsT = seq_of_obs_from_seq_of_mats(model, A_T)
 
-~ vEstSdResPar, fVecT_filt, ~, ~, conf_bands_coverage, ftot_0 = DynNets.estimate_and_filter(model, N, obsT)
+model = model_pmle
+
+@elapsed obsT = DynNets.seq_of_obs_from_seq_of_mats(model, A_T)
+
+_, vEstSdResPar, fVecT_filt, _, _, conf_bands_coverage, ftot_0 = DynNets.estimate_and_filter(model, N, obsT)
+
+
+
+
+
 
 # correctly specified filter
 
 # estimate
+
+
+
+
+
+
+# store the sufficient statistics and change statistics in R
 
 
 

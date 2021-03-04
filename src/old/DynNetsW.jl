@@ -59,27 +59,6 @@ StaModType(Model::GasNetModelDirW1) = StaticNets.fooNetModelDirW1# to be substit
 #
 # options and conversions of parameters for optimization
 
-function setOptionsOptim(Model::GasNetModelDirW1)
-    "Set the options for the optimization required in the estimation of the model.
-    For the optimization use the Optim package."
-    tol = eps()*10
-    opt = Optim.Options(  g_tol = tol,
-                     x_tol = tol,
-                     f_tol = tol,
-                     iterations = 5000,
-                     show_trace = true,#false,#
-                     show_every=1)
-
-    algo = Newton(; alphaguess = LineSearches.InitialHagerZhang(),
-                     linesearch = LineSearches.BackTracking())
-
-    # algo = NewtonTrustRegion(; initial_delta = 0.5,
-    #                 delta_hat = 1.0,
-    #                 eta = 0.1,
-    #                 rho_lower = 0.25,
-    #                 rho_upper = 0.75)# Newton(;alphaguess = Optim.LineSearches.InitialStatic(),
-      return opt, algo
- end
 
 
 function NumberOfGroups(Model::GasNetModelDirW1,groupsInds::Array{Array{Int,1},1})
