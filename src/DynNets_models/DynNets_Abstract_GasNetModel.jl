@@ -262,6 +262,13 @@ function target_function_t_hess(model::T where T<: GasNetModel, obs_t, f_t)
 end
 
 
+function target_function_t_fisher(model::T where T<: GasNetModel, obs_t, f_t)
+
+    error("need to code the fisher manually, cannot be obtained by Automatic Differentiation in the general case, only when the fisher equality holds")
+    return fisher_info_t
+end
+
+
 function updatedGasPar( model::T where T<: GasNetModel, obs_t, ftot_t::Array{<:Real,1}, I_tm1::Array{<:Real,2}, indTvPar::BitArray{1}, Wgas::Array{<:Real,1}, Bgas::Array{<:Real,1}, Agas::Array{<:Real,1})
     
     
@@ -272,16 +279,22 @@ function updatedGasPar( model::T where T<: GasNetModel, obs_t, ftot_t::Array{<:R
     
     grad_tot_t = target_function_t_grad(model, obs_t, ftot_t)
     
-    hess_tot_t = target_function_t_hess(model, obs_t, ftot_t)
+    regWeight = 0.95
 
-    if model.scoreScalingType =="HESS"
+    if model.scoreScalingType =="HESS_D"
+        hess_tot_t = target_function_t_hess(model, obs_t, ftot_t)
         I_updt = -hess_tot_t
+        I_t = regWeight.*I_updt .+ (1-regWeight).*I(size(I_updt)[1])
+        s_t = grad_tot_t[indTvPar]./I_t[I(size(I_t)[1])]
+    elseif model.scoreScalingType =="SQRT_FISH_D"
+        fish_tot_t = target_function_t_fisher(model, obs_t, ftot_t)
+        I_updt = -fish_tot_t
+        I_t = regWeight.*I_updt .+ (1-regWeight).*I(size(I_updt)[1])
+        s_t = grad_tot_t[indTvPar]./sqrt.(I_t[I(size(I_t)[1])]) 
+
     end
-    ewmaWeight = 0.95
-    I_t = ewmaWeight.*I_updt .+ (1-ewmaWeight).*I(size(I_updt)[1])
 
     f_t = ftot_t[indTvPar] #Time varying ergm parameters
-    s_t = grad_tot_t[indTvPar]./I_t[I(size(I_t)[1])]
 
     f_tp1 = Wgas .+ Bgas.* f_t .+ Agas.*s_t
 
@@ -913,7 +926,7 @@ function conf_bands_buccheri(model::GasNetModel, obsT, indTvPar, fVecT_filt, dis
     confBandsPar = repeat(fVecT_filt, outer=(1,1,nBands, 2))
     confBandsParFilt = repeat(fVecT_filt, outer=(1,1,nBands, 2))
 
-    for p =1:number_ergm_par(model)
+    for p = 1:number_ergm_par(model)
         for t=1:T
             for b=1:nBands
                 length(quantilesVals[b]) ==2 ? () : error()
@@ -1053,7 +1066,7 @@ function estimate_and_filter(model::GasNetModel, N, obsT; indTvPar = model.indTv
 end
     
 
-function conf_bands_given_SD_estimates(model::GasNetModel, obsT, N, vEstSdResPar, ftot_0, quantilesVals::Vector{Vector{Float64}}; indTvPar = model.indTvPar, parDgpT=zeros(2,2), plotFlag=false, parUncMethod = "WHITE-MLE" )
+function conf_bands_given_SD_estimates(model::GasNetModel, N, obsT, vEstSdResPar, ftot_0, quantilesVals::Vector{Vector{Float64}}; indTvPar = model.indTvPar, parDgpT=zeros(2,2), plotFlag=false, parUncMethod = "WHITE-MLE" )
     
     T = length(obsT)
 
@@ -1076,10 +1089,19 @@ function conf_bands_given_SD_estimates(model::GasNetModel, obsT, N, vEstSdResPar
 
     elseif parUncMethod == "WHITE-MLE"
 
-         mvSDUnParEstCov, errFlagEstCov = white_estimate_cov_mat_static_sd_par(model, N, obsT, indTvPar, ftot_0, vEstSdResPar)
+        mvSDUnParEstCov, errFlagEstCov = white_estimate_cov_mat_static_sd_par(model, N, obsT, indTvPar, ftot_0, vEstSdResPar)
          
         distribFilteredSD, filtCovHatSample, mvSDUnParEstCov, errFlagMvNormSample = distrib_filtered_par_from_mv_normal(model, N, obsT, indTvPar, ftot_0, vEstSdResPar, mvSDUnParEstCov)
+    elseif parUncMethod == "HESS"
+
+        OPGradSum, HessSum = A0_B0_est_for_white_cov_mat_obj_SD_filter_time_seq(model, N, obsT, vEstSdResPar, indTvPar, ftot_0)
+
+        mvSDUnParEstCov, errFlagEstCov = make_pos_def(pinv(HessSum)), false
+        
+        distribFilteredSD, filtCovHatSample, mvSDUnParEstCov, errFlagMvNormSample = distrib_filtered_par_from_mv_normal(model, N, obsT, indTvPar, ftot_0, vEstSdResPar, mvSDUnParEstCov)
+
     end
+
 
     confBandsFiltPar,  confBandsPar = conf_bands_buccheri(model, obsT, indTvPar, fVecT_filt, distribFilteredSD, filtCovHatSample, quantilesVals)
 
@@ -1103,9 +1125,9 @@ function estimate_filter_and_conf_bands(model::GasNetModel, A_T, quantilesVals::
 
     obsT, vEstSdResPar, fVecT_filt, ~, ~, conv_flag, ftot_0 = estimate_and_filter(model, N, obsT; indTvPar = indTvPar)
     
-    fVecT_filt, confBandsFiltPar, confBandsPar, errFlag, mvSDUnParEstCov, distribFilteredSD = conf_bands_given_SD_estimates(model, obsT, N, vEstSdResPar, ftot_0, quantilesVals; indTvPar = indTvPar, parDgpT=parDgpT, plotFlag=plotFlag, parUncMethod = parUncMethod)
+    fVecT_filt, confBandsFiltPar, confBandsPar, errFlag, mvSDUnParEstCov, distribFilteredSD = conf_bands_given_SD_estimates(model, N, obsT, vEstSdResPar, ftot_0, quantilesVals; indTvPar = indTvPar, parDgpT=parDgpT, plotFlag=plotFlag, parUncMethod = parUncMethod)
 
-    return obsT, vEstSdResPar, fVecT_filt, confBandsFiltPar, confBandsPar, errFlag
+    return obsT, vEstSdResPar, ftot_0, fVecT_filt, confBandsFiltPar, confBandsPar, errFlag
 
 end
 

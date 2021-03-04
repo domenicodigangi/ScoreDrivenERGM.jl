@@ -5,7 +5,7 @@ import ..StaticNets:NetModeErgmPml, NetModelDirBin0Rec0
 Base.@kwdef struct  SdErgmPml <: GasNetModel
     staticModel::NetModeErgmPml
     indTvPar :: BitArray{1} 
-    scoreScalingType::String = "HESS" # String that specifies the rescaling of the score. For a list of possible choices see function scalingMatGas
+    scoreScalingType::String = "HESS_D" # String that specifies the rescaling of the score. For a list of possible choices see function scalingMatGas
 end
 export SdErgmPml
 
@@ -55,5 +55,13 @@ function target_function_t_hess(model::SdErgmPml, obs_t, f_t)
     changeStat, response, weights = ErgmRcall.decomposeMPLEmatrix(obs_t)
     
     return StaticNets.hessian_pseudo_loglikelihood_strauss_ikeda(f_t, changeStat, weights)
+
+end
+
+function target_function_t_fisher(model::SdErgmPml, obs_t, f_t) 
+
+    changeStat, response, weights = ErgmRcall.decomposeMPLEmatrix(obs_t)
+    
+    return  StaticNets.fisher_info_pseudo_loglikelihood_strauss_ikeda(f_t, changeStat, weights)
 
 end
