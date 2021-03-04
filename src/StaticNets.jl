@@ -11,11 +11,7 @@ using ..ErgmRcall
 
 ## STATIC NETWORK MODEL
 abstract type NetModel end
-abstract type NetModelW <: NetModel end
-abstract type NetModelBinW <: NetModel end
-abstract type NetModelWcount <: NetModelW end
-abstract type NetModelBin <: NetModel end
-abstract type NetModelDirBin <: NetModelBin end
+abstract type NetModelDirBin <: NetModel end
 
 #constants
 targetErrValStaticNets = 1e-2
@@ -33,10 +29,9 @@ export maxLargeVal
 minSmallVal = 1e2*eps()
 export minSmallVal
 
-include("./StaticNets_models/StaticNets_Bin1.jl")
 include("./StaticNets_models/StaticNets_DirBin1.jl")
 include("./StaticNets_models/StaticNets_DirBin0Rec0.jl")
-include("./StaticNets_models/StaticNets_DirBinErgmPseudo.jl")
+include("./StaticNets_models/StaticNets_ErgmPML.jl")
 
 
 end

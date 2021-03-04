@@ -17,7 +17,7 @@ T = 200
 #the values for the unconidtional means to be used in the DGP are obtained estimating
 #an equally spaced degree sequence
 tmpDegs = Array{Real,1}(linspace(2,N-2,N) )'; tmpdegsT = repmat(tmpDegs,2,1)  #ones(N)*N/2
-tmpModel =  DynNets.GasNetModelBin1(tmpdegsT,[zeros(N),zeros(GTV),zeros(GTV)],
+tmpModel =  DynNets.GasNetModel1(tmpdegsT,[zeros(N),zeros(GTV),zeros(GTV)],
                                     ones(Int,N))
 est_times =  Array{Float64}(zeros( N_est))
 est_conv_flag =  falses(N_est)
@@ -37,7 +37,7 @@ n = 1
                                                     BgasGroups = sim_B,
                                                     WgasNodes = sim_W )
         degsT = squeeze(sum(Y_T,2),2)
-        model_data = DynNets.GasNetModelBin1(   degsT,
+        model_data = DynNets.GasNetModel1(   degsT,
                                                 [zeros(N),zeros(Ngroups),zeros(Ngroups)],
                                                 groupsInds)
         #estimate

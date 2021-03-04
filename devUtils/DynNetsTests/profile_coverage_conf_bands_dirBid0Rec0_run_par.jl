@@ -20,27 +20,18 @@ model_mle = DynNets.GasNetModelDirBin0Rec0_mle()
 model_pmle = DynNets.GasNetModelDirBin0Rec0_pmle()
 indTvPar = trues(2)
 
-
-dgpSetAR, ~, dgpSetSD = ScoreDrivenERGM.DynNets.list_example_dgp_settings_for_paper(model_mle)
+dgpSetAR, ~, dgpSetSD = ScoreDrivenERGM.DynNets.list_example_dgp_settings(model_mle)
 
 dgpSetAR = (type = "AR", opt =( B = 0.98, sigma =0.01))
 dgpSettings = dgpSetAR
 model = model_mle
-parDgpT = DynNets.dgp_misspecified(model, dgpSettings.type, N, T;  dgpSettings.opt...)
-A_T_dgp = DynNets.sample_dgp(model, parDgpT,N)
+parDgpT = DynNets.sample_time_var_par_from_dgp(model, dgpSettings.type, N, T;  dgpSettings.opt...)
 
-quantilesVals = [[0.975, 0.025]]
+A_T_dgp = DynNets.sample_mats_sequence(model, parDgpT,N)
 
-DynNets.estimate_filter_and_conf_bands(model, A_T_dgp, quantilesVals; indTvPar = model.indTvPar, parDgpT=parDgpT, plotFlag=true)
+obsT, vEstSdResPar, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0 = DynNets.estimate_and_filter(model, N, obsT)
 
-end
-
-
-obsT, vEstSdResPar, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0 = DynNets.estimate_and_filter(model, A_T_dgp)
-
-
-
-ProfileView.@profview obsT, vEstSdResPar, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0 = DynNets.estimate_and_filter(model, A_T_dgp)
+ProfileView.@profview obsT, vEstSdResPar, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0 = DynNets.estimate_and_filter(model, N, obsT)
         
 
 

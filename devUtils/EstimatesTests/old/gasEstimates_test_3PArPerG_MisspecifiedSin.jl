@@ -64,7 +64,7 @@ est_flag = SharedArray{Bool,2}(N_ind,N_est)
         ParTvDgpTmp[:,:,n] = fit_T
         ObsTmp[:,:,n] = sampleDegsT
 
-        Model2Est =  DynNets.GasNetModelBin1_UmBAgr(sampleDegsT,[zeros(GWest),zeros(GBAest),zeros(GBAest)],
+        Model2Est =  DynNets.GasNetModel1_UmBAgr(sampleDegsT,[zeros(GWest),zeros(GBAest),zeros(GBAest)],
                                                     groupsIndsEst)
         #estimate
         useStartVal ?   start_val = [sim_W, sim_B, sim_A] : start_val = zeros(3,3)

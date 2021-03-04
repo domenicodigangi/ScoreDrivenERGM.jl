@@ -2,7 +2,7 @@
 #Binary DIRECTED Networks
 ##
 
-struct  NetModelDirBin1 <: NetModelBin #Bin stands for (Binary) Adjacency matrix
+struct  NetModelDirBin1 <: NetModel #Bin stands for (Binary) Adjacency matrix
     "ERGM for directed networks with in and out degrees as statistics and
     possibility to have groups of nodes associated with a single pair of in out
     parameters. "

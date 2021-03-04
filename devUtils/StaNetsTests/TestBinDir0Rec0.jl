@@ -15,7 +15,7 @@ nSample = 500
 N=30
     θ_0 = -3.1
     η_0 = 2
-    model = fooNetModelDirBin0Rec0
+    model = NetModelDirBin0Rec0()
     diadProb = diadProbFromPars(model, [θ_0, η_0])
     A_vec = [samplSingMatCan(model, diadProb, N) for i=1:nSample]
 
