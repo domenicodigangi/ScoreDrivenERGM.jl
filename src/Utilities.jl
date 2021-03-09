@@ -227,4 +227,18 @@ end
 export dgpAR
 
 
+function drop_bad_un_estimates(inputEstMat)
+
+    nanInds = dropdims(any(isnan.(inputEstMat), dims=1), dims=1)
+    infInds = dropdims(any(.!isfinite.(inputEstMat), dims=1), dims=1)
+    integrInds = dropdims(any(inputEstMat[2:3:6,:] .> 10, dims=1), dims=1)
+    constInds = dropdims(any(inputEstMat[3:3:6,:] .< log(0.01), dims=1), dims=1)
+
+    dropInds = nanInds .| infInds  .| integrInds .| constInds
+    @show (sum(nanInds), sum(infInds), sum(integrInds), sum(constInds))
+
+    inputEstMat[:, .!dropInds]
+end
+export drop_bad_un_estimates
+
 end

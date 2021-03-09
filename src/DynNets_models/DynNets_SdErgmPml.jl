@@ -23,6 +23,9 @@ function name(x::SdErgmPml)
 end
 
 
+
+
+
 statsFromMat(model::SdErgmPml, A ::Matrix{<:Real}) = StaticNets.change_stats(model.staticModel, A)
 
 
@@ -64,4 +67,11 @@ function target_function_t_fisher(model::SdErgmPml, obs_t, f_t)
     
     return  StaticNets.fisher_info_pseudo_loglikelihood_strauss_ikeda(f_t, changeStat, weights)
 
+end
+
+
+function reference_model(model::SdErgmPml) 
+    if model.staticModel.ergmTermsString == ergm_term_string(NetModelDirBin0Rec0())
+        return GasNetModelDirBin0Rec0_mle()
+    end
 end

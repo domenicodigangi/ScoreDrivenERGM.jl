@@ -18,6 +18,8 @@ Base.string(x::GasNetModelDirBin0Rec0) = name(x::GasNetModelDirBin0Rec0)
 export string
 
 
+reference_model(model::GasNetModelDirBin0Rec0_mle) = model
+
 """
 Given the flag of constant parameters, a starting value for their unconditional means (their constant value, for those constant), return a starting point for the optimization
 """
@@ -215,13 +217,19 @@ end
 
 function list_example_dgp_settings(model::GasNetModelDirBin0Rec0)
 
-    dgpSetAR = (type = "AR", opt = (B =[0.98], sigma = [0.002]))
+    dgpSetARlow = (type = "AR", opt = (B =[0.98], sigma = [0.01]))
+
+    dgpSetARmed = (type = "AR", opt = (B =[0.98], sigma = [0.05]))
+    
+    dgpSetARhigh = (type = "AR", opt = (B =[0.98], sigma = [0.1]))
 
     dgpSetSIN = (type = "SIN", opt = ( nCycles=[1.5]))
 
     dgpSetSD = (type = "SD", opt = (B =[0.98], A = [0.3]))
+    
+    dgpSetSDhigh = (type = "SD", opt = (B =[0.98], A = [3]))
 
-    return (; dgpSetAR, dgpSetSIN, dgpSetSD)
+    return (; dgpSetARlow, dgpSetARmed, dgpSetARhigh, dgpSetSIN, dgpSetSD, dgpSetSDhigh)
 end
 
 
