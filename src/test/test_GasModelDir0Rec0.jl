@@ -58,7 +58,7 @@ end
 
  
 # @time begin 
-#     obsT, vEstSdResPar, ftot_0, fVecT_filt, confBandsFiltPar, confBandsPar, errFlag = DynNets.estimate_filter_and_conf_bands(DynNets.GasNetModelDirBin0Rec0_pmle("SQRT_FISH_D"), A_T, parDgpT=parDgpT, quantileVals, plotFlag=true);    
+#     obsT, vEstSdResPar, ftot_0, fVecT_filt, confBandsFiltPar, confBandsPar, errFlag = DynNets.estimate_filter_and_conf_bands(DynNets.GasNetModelDirBin0Rec0_pmle("FISH_D"), A_T, parDgpT=parDgpT, quantileVals, plotFlag=true);    
 #     resFish = (;obsT, vEstSdResPar, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0)
 # end
 
@@ -66,7 +66,7 @@ end
 # IL PROBLEMA € NELLA MATRICE DI VARIANZA COVARIANZA STIMATA CON WHITE. QUELLA NON HA LA GIUSTA MAGNITUDE, quando i parametri time varying variano molto
 
 
-# @time fVecT_filt, confBandsFiltPar, confBandsPar, errFlag, mvSDUnParEstCovBoot, distribFilteredSD = DynNets.conf_bands_given_SD_estimates(model, N, res.obsT, res.vEstSdResPar, res.ftot_0, quantileVals; indTvPar = model.indTvPar, parDgpT=parDgpT, plotFlag=true, parUncMethod = "NAR-BOOTSTRAP-SAMPLE")
+# @time fVecT_filt, confBandsFiltPar, confBandsPar, errFlag, mvSDUnParEstCovBoot, distribFilteredSD = DynNets.conf_bands_given_SD_estimates(model, N, res.obsT, res.vEstSdResPar, res.ftot_0, quantileVals; indTvPar = model.indTvPar, parDgpT=parDgpT, plotFlag=true, parUncMethod = "NPB-SAMPLE")
 
 
 BMatSD, AMatSD = DynNets.divide_in_B_A_mats_as_if_all_TV(model, model.indTvPar, res.vEstSdResPar)
@@ -84,10 +84,10 @@ mean(filtCovHatSample, dims=3)
 
 @time fVecT_filt, confBandsFiltPar, confBandsPar, errFlag, mvSDUnParEstCov, distribFilteredSD = DynNets.conf_bands_given_SD_estimates(model_mle, N, res_mle.obsT, res_mle.vEstSdResPar, res_mle.ftot_0, quantileVals; indTvPar = model.indTvPar, parDgpT=parDgpT, plotFlag=true, parUncMethod = "WHITE-MLE", offset=1 )
 
-@time fVecT_filt, confBandsFiltPar, confBandsPar, errFlag, mvSDUnParEstCov, distribFilteredSD = DynNets.conf_bands_given_SD_estimates(model_mle, N, res_mle.obsT, res_mle.vEstSdResPar, res_mle.ftot_0, quantileVals; indTvPar = model.indTvPar, parDgpT=parDgpT, plotFlag=true, parUncMethod = "NAR-BOOTSTRAP-COV-MAT", offset=1 )
+@time fVecT_filt, confBandsFiltPar, confBandsPar, errFlag, mvSDUnParEstCov, distribFilteredSD = DynNets.conf_bands_given_SD_estimates(model_mle, N, res_mle.obsT, res_mle.vEstSdResPar, res_mle.ftot_0, quantileVals; indTvPar = model.indTvPar, parDgpT=parDgpT, plotFlag=true, parUncMethod = "NPB-COV-MAT", offset=1 )
 
 
-# @time fVecT_filt, confBandsFiltPar, confBandsPar, errFlag, mvSDUnParEstCov, distribFilteredSD = DynNets.conf_bands_given_SD_estimates(model, N, res.obsT, res.vEstSdResPar, res.ftot_0, quantileVals; indTvPar = model.indTvPar, parDgpT=parDgpT, plotFlag=true, parUncMethod = "NAR-BOOTSTRAP-COV-MAT")
+# @time fVecT_filt, confBandsFiltPar, confBandsPar, errFlag, mvSDUnParEstCov, distribFilteredSD = DynNets.conf_bands_given_SD_estimates(model, N, res.obsT, res.vEstSdResPar, res.ftot_0, quantileVals; indTvPar = model.indTvPar, parDgpT=parDgpT, plotFlag=true, parUncMethod = "NPB-COV-MAT")
 
 
 

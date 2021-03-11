@@ -88,6 +88,13 @@ function target_function_t(model::GasNetModelDirBin0Rec0_mle, obs_t, f_t)
 end
 
 
+
+function target_function_t_fisher(model::T where T<: GasNetModel, obs_t, f_t)
+    # information equality holds and hessian does not depend on observations, hence taking the expectation does not change the result
+    return  - target_function_t_hess(model, obs_t, f_t) 
+end
+
+
 function static_estimate(model::GasNetModelDirBin0Rec0_mle, statsT)
     L_mean  = mean([stat[1] for stat in statsT ])
     R_mean  = mean([stat[2] for stat in statsT ])

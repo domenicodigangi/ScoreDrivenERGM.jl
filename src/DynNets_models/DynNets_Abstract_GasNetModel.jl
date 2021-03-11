@@ -297,11 +297,11 @@ function updatedGasPar( model::T where T<: GasNetModel, obs_t, ftot_t::Array{<:R
         I_t = I_updt .+ (1-regWeight).*I_reg
         s_t = I_t\grad_tot_t[indTvPar]
 
-    elseif model.scoreScalingType =="SQRT_FISH_D"
+    elseif model.scoreScalingType =="FISH_D"
         fish_tot_t = target_function_t_fisher(model, obs_t, ftot_t)
-        I_updt = -fish_tot_t
-        I_t = I_updt .+ (1-regWeight).*I_reg
-        s_t = grad_tot_t[indTvPar]./sqrt.(I_t[I(size(I_t)[1])]) 
+        I_updt = fish_tot_t
+        I_t = I_updt #.+ (1-regWeight).*I_reg
+        s_t = grad_tot_t[indTvPar]./sqrt.(abs.(I_t[I(size(I_t)[1])])) 
 
     end
 
@@ -736,7 +736,7 @@ function white_estimate_cov_mat_static_sd_par(model::GasNetModel,  N,obsT, indTv
     nErgmPar = number_ergm_par(model)
     errorFlag = false
 
-   
+    
     OPGradSum, HessSum = A0_B0_est_for_white_cov_mat_obj_SD_filter_time_seq(model, N, obsT, vEstSdResPar, indTvPar, ftot_0)
 
     parCovHat = pinv(HessSum) * OPGradSum * pinv(HessSum)
@@ -1128,40 +1128,62 @@ function estimate_and_filter(model::GasNetModel, N, obsT; indTvPar = model.indTv
 end
     
 
-function conf_bands_given_SD_estimates(model::GasNetModel, N, obsT, vEstSdResPar, ftot_0, quantilesVals::Vector{Vector{Float64}}; indTvPar = model.indTvPar, parDgpT=zeros(2,2), plotFlag=false, parUncMethod = "WHITE-MLE", dropOutliers = true, offset = 1 )
+function conf_bands_given_SD_estimates(model::GasNetModel, N, obsT, vEstSdResPar, ftot_0, quantilesVals::Vector{Vector{Float64}}; indTvPar = model.indTvPar, parDgpT=zeros(2,2), plotFlag=false, parUncMethod = "WHITE-MLE", dropOutliers = true, offset = 1,  nSample = 500 , mvSDUnParEstCov = zeros(3,3))
     
     T = length(obsT)
 
-    nStaticPar = length(indTvPar) + sum(indTvPar)
+    nStaticPar = length(indTvPar) + 2*sum(indTvPar)
+    nErgmPar = number_ergm_par(model)
 
     fVecT_filt , target_fun_val_T, sVecT_filt = score_driven_filter(model, N, obsT,  vEstSdResPar, indTvPar; ftot_0 = ftot_0)
 
 
-    if contains(parUncMethod, "PAR-BOOTSTRAP")
+    if contains(parUncMethod, "PB")
+        # Parametric Bootstrap
 
-        distribFilteredSD, filtCovHatSample, errFlagVec, mvSDUnParEstCov = par_bootstrap_distrib_filtered_par(model, N, obsT, indTvPar, ftot_0, vEstSdResPar)
-        
-        mean(errFlagVec) > 0.1 ? errFlagEstCov=true : errFlagEstCov = false
+        errFlagEstCov = false
+        if mvSDUnParEstCov == zeros(3,3)
+            distribFilteredSDParBoot, filtCovHatSample, errFlagVec, mvSDUnParEstCov = par_bootstrap_distrib_filtered_par(model, N, obsT, indTvPar, ftot_0, vEstSdResPar)
+            mean(errFlagVec) > 0.1 ? errFlagEstCov=true : errFlagEstCov = false
+        end 
 
-        if parUncMethod[14:end] == "SAMPLE"
-            
-        elseif parUncMethod[14:end] == "COV-MAT"
+        if parUncMethod[4:end] == "SAMPLE"
+            error("not ready to sample from par bootstrap distr")                
+        elseif parUncMethod[4:end] == "COV-MAT"
 
-            distribFilteredSD, filtCovHatSample, mvSDUnParEstCov, errFlagSample = distrib_filtered_par_from_mv_normal(model, N, obsT, indTvPar, ftot_0, vEstSdResPar, mvSDUnParEstCov)
+
+            distribFilteredSD, filtCovHatSample, _, errFlagSample = distrib_filtered_par_from_mv_normal(model, N, obsT, indTvPar, ftot_0, vEstSdResPar, mvSDUnParEstCov)
 
         end
 
+
+        
+
     elseif parUncMethod == "WHITE-MLE"
+        # Huber- White robust estimator
 
-        mvSDUnParEstCov, errFlagEstCov = white_estimate_cov_mat_static_sd_par(model, N, obsT, indTvPar, ftot_0, vEstSdResPar)
-         
+        try
+            if mvSDUnParEstCov == zeros(3,3)
+                mvSDUnParEstCov, errFlagEstCov = white_estimate_cov_mat_static_sd_par(model, N, obsT, indTvPar, ftot_0, vEstSdResPar)
+            else 
+                errFlagEstCov = false
+            end       
+            distribFilteredSD, filtCovHatSample,  _, errFlagSample = distrib_filtered_par_from_mv_normal(model, N, obsT, indTvPar, ftot_0, vEstSdResPar, mvSDUnParEstCov;  nSample = nSample )
 
-         mvSDUnParEstCov = mvSDUnParEstCov
-        distribFilteredSD, filtCovHatSample, mvSDUnParEstCov, errFlagSample = distrib_filtered_par_from_mv_normal(model, N, obsT, indTvPar, ftot_0, vEstSdResPar, mvSDUnParEstCov)
+        catch  
+            Logging.@error("Error in computing white estimator")
+            errFlagEstCov = true
+            mvSDUnParEstCov = Symmetric(zeros(nStaticPar, nStaticPar))
+            distribFilteredSD = zeros(nSample, nErgmPar,T)
+            filtCovHatSample = zeros(nErgmPar, T, nSample) 
+            errFlagSample = true
+        end
+        
 
-    elseif contains(parUncMethod, "NAR-BOOTSTRAP")
+    elseif contains(parUncMethod, "NPB") 
+        # non parametric bootstrap
 
-        nBootStrap = 50
+        nBootStrap = 100
 
         vEstSdUnParBootDist = SharedArray(zeros(3*sum(model.indTvPar), nBootStrap))
 
@@ -1169,26 +1191,28 @@ function conf_bands_given_SD_estimates(model::GasNetModel, N, obsT, vEstSdResPar
             vEstSdUnParBootDist[:, k] = rand(1:T, T) |> (inds->(inds |> x-> DynNets.estimate(model, N, obsT; indTvPar=model.indTvPar, ftot_0 = ftot_0, shuffleObsInds = x) |> x-> getindex(x, 1) |> x -> DynNets.array2VecGasPar(model, x, model.indTvPar))) |> x -> DynNets.unrestrict_all_par(model, model.indTvPar, x)
         end
 
-        if parUncMethod[15:end] == "SAMPLE"
+        if parUncMethod[5:end] == "SAMPLE"
 
             distribFilteredSD, filtCovHatSample, errFlagSample = distrib_filtered_par_from_sample(model, N, obsT, indTvPar, ftot_0, Utilities.drop_bad_un_estimates(vEstSdUnParBootDist))
 
             errFlagEstCov = false
             mvSDUnParEstCov = Symmetric(zeros(nStaticPar, nStaticPar))
 
-        elseif parUncMethod[15:end] == "COV-MAT"
+        elseif parUncMethod[5:end] == "COV-MAT"
 
             mvSDUnParEstCov, errFlagEstCov = cov(Utilities.drop_bad_un_estimates(vEstSdUnParBootDist)'), false
             
             mvSDUnParEstCov, minEigenVal = Utilities.make_pos_def(mvSDUnParEstCov)
 
+            mvSDUnParEstCov = Symmetric(mvSDUnParEstCov)
 
-            distribFilteredSD, filtCovHatSample, mvSDUnParEstCov, errFlagSample = distrib_filtered_par_from_mv_normal(model, N, obsT, indTvPar, ftot_0, vEstSdResPar, mvSDUnParEstCov)
+            distribFilteredSD, filtCovHatSample, _, errFlagSample = distrib_filtered_par_from_mv_normal(model, N, obsT, indTvPar, ftot_0, vEstSdResPar, mvSDUnParEstCov)
         end
         
+        errFlagEstCov = false
 
     elseif parUncMethod == "HESS"
-
+        # Hessian of the objective function
         OPGradSum, HessSum = A0_B0_est_for_white_cov_mat_obj_SD_filter_time_seq(model, N, obsT, vEstSdResPar, indTvPar, ftot_0)
 
         errFlagEstCov = false
@@ -1201,16 +1225,24 @@ function conf_bands_given_SD_estimates(model::GasNetModel, N, obsT, vEstSdResPar
         
     end
 
-
-    confBandsFiltPar,  confBandsPar = conf_bands_buccheri(model, N, obsT, indTvPar, fVecT_filt, distribFilteredSD, filtCovHatSample, quantilesVals, dropOutliers)
-
+    # Compute confidence bands given distribution of filtered paths
+    errFlagBands=false
+    nBands = length(quantilesVals)
+    confBandsPar = repeat(fVecT_filt, outer=(1,1,nBands, 2))
+    confBandsFiltPar = repeat(fVecT_filt, outer=(1,1,nBands, 2))
+    try
+        confBandsFiltPar,  confBandsPar = conf_bands_buccheri(model, N, obsT, indTvPar, fVecT_filt, distribFilteredSD, filtCovHatSample, quantilesVals, dropOutliers)
+    catch
+        errFlagBands = true
+        Logging.@error("Error in producing confidence bands") 
+    end
   
     if plotFlag
         plot_filtered_and_conf_bands(model, N, fVecT_filt, confBandsFiltPar ; parDgpTIn=parDgpT, nameConfBand1= "$parUncMethod - Filter+Par", nameConfBand2= "Par", confBands2In=confBandsPar, offset=offset)
 
     end
 
-    errFlag = errFlagEstCov | errFlagSample
+    errFlag = errFlagEstCov | errFlagSample | errFlagBands
 
     return fVecT_filt::Array{<:Real,2}, confBandsFiltPar::Array{<:Real,4}, confBandsPar::Array{<:Real,4}, errFlag::Bool, mvSDUnParEstCov::LinearAlgebra.Symmetric{Float64,Array{Float64,2}}, distribFilteredSD::Array{Float64,3}
 end

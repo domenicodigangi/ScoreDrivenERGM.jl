@@ -17,7 +17,7 @@ T=100
 
 model_mle = DynNets.GasNetModelDirBin0Rec0_mle()
 
-model_pmle = DynNets.GasNetModelDirBin0Rec0_pmle("SQRT_FISH_D")
+model_pmle = DynNets.GasNetModelDirBin0Rec0_pmle("FISH_D")
 
 indTvPar = trues(2)
 
