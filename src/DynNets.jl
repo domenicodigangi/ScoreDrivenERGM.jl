@@ -20,6 +20,8 @@ using PyPlot
 using Logging
 using Distributed
 using SharedArrays
+using DataStructures
+
 
 
 using ..AReg

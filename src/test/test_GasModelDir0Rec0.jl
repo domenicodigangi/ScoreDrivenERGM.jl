@@ -12,41 +12,76 @@ using SharedArrays
 using PyPlot
 using Statistics
 using StatsBase
+using DataStructures
 
-model_mle = DynNets.GasNetModelDirBin0Rec0_mle()
-model = DynNets.GasNetModelDirBin0Rec0_pmle("HESS_D")
-
-
+# model = DynNets.GasNetModelDirBin0Rec0_pmle("HESS_D")
+model = DynNets.GasNetModelDirBin0Rec0_pmle(scoreScalingType ="FISH_D")
+model_mle = DynNets.GasNetModelDirBin0Rec0_mle(scoreScalingType="FISH_D")
+model_2 = model_mle
+model_3 =  DynNets.GasNetModelDirBin0Rec0_pmle(scoreScalingType="FISH_D", options = SortedDict("Firth" => true))
 
 
 
 
 # sample dgp
 @time begin 
-N = 100
+N = 50
 T =300
 quantileVals = [[0.975, 0.025]]
 listDgpSettigns = DynNets.list_example_dgp_settings(model_mle)
 # dgpSet = listDgpSettigns.dgpSetSD
 # dgpSet.opt.A[1] = 1
-dgpSet = listDgpSettigns.dgpSetSDhigh
+dgpSet = listDgpSettigns.dgpSetSDlow
 
 
 parDgpT = DynNets.sample_time_var_par_from_dgp(model_mle, dgpSet.type, N, T;  dgpSet.opt...)
 
 A_T = DynNets.sample_mats_sequence(model_mle, parDgpT,N)
-end
 
-@time begin
     obsT, vEstSdResPar, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0, confBandsFiltPar, confBandsPar, errFlag = DynNets.estimate_filter_and_conf_bands(model, A_T, parDgpT=parDgpT, quantileVals, plotFlag=true);    
     res = (;  obsT, vEstSdResPar, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0, confBandsFiltPar, confBandsPar, errFlag)
 end
 
 @time begin
-    obsT, vEstSdResPar, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0, confBandsFiltPar, confBandsPar, errFlag = DynNets.estimate_filter_and_conf_bands(model_mle, A_T, parDgpT=parDgpT, quantileVals, plotFlag=true);    
-    res_mle = (;  obsT, vEstSdResPar, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0, confBandsFiltPar, confBandsPar, errFlag)
+    obsT, vEstSdResPar, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0, confBandsFiltPar, confBandsPar, errFlag = DynNets.estimate_filter_and_conf_bands(model_2, A_T, parDgpT=parDgpT, quantileVals, plotFlag=true);    
+    res_2 = 
+    (;  obsT, vEstSdResPar, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0, confBandsFiltPar, confBandsPar, errFlag)
 end
-# plot(res.target_fun_val_T)
+
+@time begin
+    obsT, vEstSdResPar, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0, confBandsFiltPar, confBandsPar, errFlag = DynNets.estimate_filter_and_conf_bands(model_3, A_T, parDgpT=parDgpT, quantileVals, plotFlag=true);    
+    res_3 = 
+    (;  obsT, vEstSdResPar, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0, confBandsFiltPar, confBandsPar, errFlag)
+end
+
+
+res.vEstSdResPar 
+res_2.vEstSdResPar
+res_3.vEstSdResPar
+
+mvSDUnParEstCov, errFlagEstCov = DynNets.white_estimate_cov_mat_static_sd_par(model_2, N, res_2.obsT, model_2.indTvPar, res_2.ftot_0, res_2.vEstSdResPar)
+
+mvSDUnParEstCov[I(6)]
+
+distribFilteredSD, filtCovHatSample,  _, errFlagSample = DynNets.distrib_filtered_par_from_mv_normal(model_2, N, res_2.obsT, model_2.indTvPar, res_2.ftot_0, res_2.vEstSdResPar, mvSDUnParEstCov)
+
+plot(distribFilteredSD[:,2,:])
+
+
+
+f_t = res_2.fVecT_filt[:,10]
+obs_t = res_2.obsT[10]
+target_fun_t(x) = DynNets.target_function_t(model_mle, obs_t, N, x)
+
+using ForwardDiff
+hess_tot_t = ForwardDiff.hessian(target_fun_t, f_t)
+target_function_t_hess(model_mle, obs_t, N, f_t)
+
+
+ForwardDiff.gradient(target_fun_t, f_t)
+
+target_function_t_grad(model_mle, obs_t, N, f_t)
+
 
 # nBootStrap = 150
 # vEstSdUnParBootDist = SharedArray(zeros(3*sum(model.indTvPar), nBootStrap))

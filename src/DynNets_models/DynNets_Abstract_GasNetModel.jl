@@ -243,12 +243,12 @@ function seq_of_obs_from_seq_of_mats(model::T where T <:GasNetModel, AT)
 end
 
 
-target_function_t(model::GasNetModel, obst_t, f_t) = error("Not yet defined")
+target_function_t(model::GasNetModel, obs_t, N, f_t) = error("Not yet defined")
 
 
-function target_function_t_grad(model::T where T<: GasNetModel, obs_t, f_t)
+function target_function_t_grad(model::T where T<: GasNetModel, obs_t, N, f_t)
 
-    target_fun_t(x) = target_function_t(model, obs_t, x)
+    target_fun_t(x) = target_function_t(model, obs_t, N, x)
     
     grad_tot_t = ForwardDiff.gradient(target_fun_t, f_t)
 
@@ -256,9 +256,9 @@ function target_function_t_grad(model::T where T<: GasNetModel, obs_t, f_t)
 end
 
 
-function target_function_t_hess(model::T where T<: GasNetModel, obs_t, f_t)
+function target_function_t_hess(model::T where T<: GasNetModel, obs_t, N, f_t)
 
-    target_fun_t(x) = target_function_t(model, obs_t, x)
+    target_fun_t(x) = target_function_t(model, obs_t, N, x)
     
     hess_tot_t = ForwardDiff.hessian(target_fun_t, f_t)
 
@@ -266,44 +266,51 @@ function target_function_t_hess(model::T where T<: GasNetModel, obs_t, f_t)
 end
 
 
-function target_function_t_fisher(model::T where T<: GasNetModel, obs_t, f_t)
+function target_function_t_fisher(model::T where T<: GasNetModel, obs_t, N, f_t)
 
     error("need to code the fisher manually, cannot be obtained by Automatic Differentiation in the general case, only when the fisher equality holds")
     return fisher_info_t
 end
 
 
-function updatedGasPar( model::T where T<: GasNetModel, obs_t, ftot_t::Array{<:Real,1}, I_tm1::Array{<:Real,2}, indTvPar::BitArray{1}, Wgas::Array{<:Real,1}, Bgas::Array{<:Real,1}, Agas::Array{<:Real,1})
+function updatedGasPar( model::T where T<: GasNetModel, obs_t, N, ftot_t::Array{<:Real,1}, I_tm1::Array{<:Real,2}, indTvPar::BitArray{1}, Wgas::Array{<:Real,1}, Bgas::Array{<:Real,1}, Agas::Array{<:Real,1})
     
     
     #= likelihood and gradients depend on all the parameters (ftot_t), but
     only the time vaying ones (f_t) are to be updated=#
     
-    target_fun_val_t = target_function_t(model, obs_t, ftot_t)
+    target_fun_val_t = target_function_t(model, obs_t, N, ftot_t)
     
-    grad_tot_t = target_function_t_grad(model, obs_t, ftot_t)
+    grad_tot_t = target_function_t_grad(model, obs_t, N, ftot_t)
     
-    regWeight = 0.95
     I_reg = I(size(I_tm1)[1])
 
+    extremeScaledScore = 1e3
+
+
     if model.scoreScalingType =="HESS_D"
-        hess_tot_t = target_function_t_hess(model, obs_t, ftot_t)
+        hess_tot_t = target_function_t_hess(model, obs_t, N, ftot_t)
         I_updt = -hess_tot_t
-        I_t = I_updt.+ (1-regWeight).*I_reg
+        I_t = I_updt
         s_t = grad_tot_t[indTvPar]./I_t[I(size(I_t)[1])]
+    elseif model.scoreScalingType =="MAX_LINKS"
+        hess_tot_t = target_function_t_hess(model, obs_t, N, ftot_t)
+        I_t = ones(size(grad_tot_t)).*(N^2-N)
+        s_t = grad_tot_t[indTvPar]./I_t
     elseif model.scoreScalingType =="HESS"
-        hess_tot_t = target_function_t_hess(model, obs_t, ftot_t)
+        hess_tot_t = target_function_t_hess(model, obs_t, N, ftot_t)
         I_updt = -hess_tot_t
-        I_t = I_updt .+ (1-regWeight).*I_reg
+        I_t = I_updt
         s_t = I_t\grad_tot_t[indTvPar]
 
     elseif model.scoreScalingType =="FISH_D"
-        fish_tot_t = target_function_t_fisher(model, obs_t, ftot_t)
+        fish_tot_t = target_function_t_fisher(model, obs_t, N, ftot_t)
         I_updt = fish_tot_t
-        I_t = I_updt #.+ (1-regWeight).*I_reg
-        s_t = grad_tot_t[indTvPar]./sqrt.(abs.(I_t[I(size(I_t)[1])])) 
+        I_t = I_updt  
+        s_t = clamp.(grad_tot_t[indTvPar]./sqrt.((I_t[I(size(I_t)[1])])), -extremeScaledScore, extremeScaledScore) 
 
     end
+
 
     f_t = ftot_t[indTvPar] #Time varying ergm parameters
 
@@ -389,7 +396,7 @@ function score_driven_filter_or_dgp( model::T where T<: GasNetModel, N, vResGasP
         #obj fun at time t is objFun(obs_t, f_t)
 
         # predictive step
-        ftot_tp1, logLikeVecT[t], invScalMatT[:,:,t], sVecT[:,t] = updatedGasPar(model, obs_t, fVecT[:, t], I_tm1, indTvPar, Wvec, Bvec, Avec)
+        ftot_tp1, logLikeVecT[t], invScalMatT[:,:,t], sVecT[:,t] = updatedGasPar(model, obs_t, N, fVecT[:, t], I_tm1, indTvPar, Wvec, Bvec, Avec)
 
         I_tm1 = invScalMatT[:,:,t]
 
@@ -453,12 +460,12 @@ function score_driven_filter( model::T where T<: GasNetModel, N, obsT, vResGasPa
         #obj fun at time t is objFun(obs_t, f_t)
 
         # predictive step
-        ftot_tp1, logLikeVecT[t], invScalMatT[:,:,t], sVecT[:,t] = updatedGasPar(model, obs_t, fVecT[:, t], I_tm1, indTvPar, Wvec, Bvec, Avec)
+        ftot_tp1, logLikeVecT[t], invScalMatT[:,:,t], sVecT[:,t] = updatedGasPar(model, obs_t, N, fVecT[:, t], I_tm1, indTvPar, Wvec, Bvec, Avec)
 
         I_tm1 = invScalMatT[:,:,t]
 
         # would the following be the update step instead ??
-        #fVecT[:,t], loglike_t, I_tm1, grad_t = updatedGasPar(model,N, obs_t, fVecT[:,t-1], I_tm1, indTvPar, Wvec, Bvec, Avec)
+        #fVecT[:,t], loglike_t, I_tm1, grad_t = updatedGasPar(model, obs_t, N, fVecT[:,t-1], I_tm1, indTvPar, Wvec, Bvec, Avec)
 
         if t!=T
             fVecT[:,t+1] = ftot_tp1
@@ -526,12 +533,12 @@ function score_driven_dgp( model::T where T<: GasNetModel, N, dgpNT, vResGasPar:
         #obj fun at time t is objFun(obs_t, f_t)
 
         # predictive step
-        ftot_tp1, logLikeVecT[t], invScalMatT[:,:,t], sVecT[:,t] = updatedGasPar(model, obs_t, fVecT[:, t], I_tm1, indTvPar, Wvec, Bvec, Avec)
+        ftot_tp1, logLikeVecT[t], invScalMatT[:,:,t], sVecT[:,t] = updatedGasPar(model, obs_t, N, fVecT[:, t], I_tm1, indTvPar, Wvec, Bvec, Avec)
 
         I_tm1 = invScalMatT[:,:,t]
 
         # would the following be the update step instead ??
-        #fVecT[:,t], loglike_t, I_tm1, grad_t = updatedGasPar(model,N, obs_t, fVecT[:,t-1], I_tm1, indTvPar, Wvec, Bvec, Avec)
+        #fVecT[:,t], loglike_t, I_tm1, grad_t = updatedGasPar(model, obs_t,  N, fVecT[:,t-1], I_tm1, indTvPar, Wvec, Bvec, Avec)
 
         if t!=T
             fVecT[:,t+1] = ftot_tp1
@@ -543,6 +550,8 @@ function score_driven_dgp( model::T where T<: GasNetModel, N, dgpNT, vResGasPar:
 end
 
 
+using ReverseDiff
+using FiniteDiff
 """
 Estimate the GAS and static parameters
 """
@@ -624,7 +633,8 @@ function estimate(model::T where T<: GasNetModel, N, obsT; indTvPar::BitArray{1}
     end
 
     if shuffleObsFlag 
-        function objfunGasShuff(vecUnPar::Array{<:Real,1})# a function of the groups parameters
+
+        function objfunGasShuffle(vecUnPar::Array{<:Real,1})# a function of the groups parameters
 
             vecReGasParAll,vecConstPar = divideCompleteRestrictPar(vecUnPar)
 
@@ -634,8 +644,8 @@ function estimate(model::T where T<: GasNetModel, N, obsT; indTvPar::BitArray{1}
 
                 return - sum(logLikeVecT[shuffleObsInds])
         end
-    
-        ADobjfunGas = TwiceDifferentiable(objfunGasShuff, vParOptim_0; autodiff = :forward);
+   
+        ADobjfunGas = TwiceDifferentiable(objfunGasShuffle, vParOptim_0; autodiff = :forward);
     else
         function objfunGas(vecUnPar::Array{<:Real,1})# a function of the groups parameters
 
@@ -647,8 +657,28 @@ function estimate(model::T where T<: GasNetModel, N, obsT; indTvPar::BitArray{1}
 
             return - sum(logLikeVecT)
         end
+
         ADobjfunGas = TwiceDifferentiable(objfunGas, vParOptim_0; autodiff = :forward);
+
+
+        if haskey(model.options, "Firth")
+            if model.options["Firth"]
+
+                @show FiniteDiff.finite_difference_hessian(objfunGas, vParOptim_0)
+                function objfunGasFirth(vecUnPar::Array{<:Real,1})
+                    objfunGas(vecUnPar) -  0.5 * LinearAlgebra.logabsdet( FiniteDiff.finite_difference_hessian(objfunGas, vecUnPar))[1]
+                end
+
+                @show objfunGasFirth(vParOptim_0)
+        
+                ADobjfunGas = TwiceDifferentiable(objfunGasFirth, vParOptim_0; autodiff = :forward);
+            end
+        
+        end
     end
+    
+
+
 
     #Run the optimization
    
@@ -920,7 +950,7 @@ function par_bootstrap_distrib_filtered_par(model::GasNetModel, N, obsT, indTvPa
 end
 
 
-function conf_bands_buccheri(model::GasNetModel, N, obsT, indTvPar, fVecT_filt, distribFilteredSD, filtCovHatSample, quantilesVals::Vector{Vector{Float64}}, dropOutliers::Bool; nSample = 500)
+function conf_bands_buccheri(model::GasNetModel, N, obsT, indTvPar, fVecT_filt, distribFilteredSD, filtCovHatSample, quantilesVals::Vector{Vector{Float64}}, dropOutliers::Bool; nSample = 250)
 
 
     T = length(obsT)
@@ -947,7 +977,7 @@ function conf_bands_buccheri(model::GasNetModel, N, obsT, indTvPar, fVecT_filt, 
         
                 # add filtering and parameter unc
                 diff = a_t_vec[isfinite.(a_t_vec)] .- aHat_t
-                extr = quantile(diff, [0.05, 0.95])
+                extr = quantile(diff, [0.01, 0.99])
                 if dropOutliers & (extr[1] != extr[2])
                     diffNoOutl = filter(x->extr[1] < x < extr[2], diff)
                 else    
@@ -1059,7 +1089,7 @@ function conf_bands_coverage(parDgpTIn, confBandsIn; offset=0 )
 end
 
 
-function plot_filtered_and_conf_bands(model::GasNetModel, N, fVecT_filtIn, confBands1In; confBands2In =zeros(2,2), parDgpTIn=zeros(2,2), nameConfBand1="1", nameConfBand2="2", offset = 0)
+function plot_filtered_and_conf_bands(model::GasNetModel, N, fVecT_filtIn, confBands1In; confBands2In =zeros(2,2,2,2), parDgpTIn=zeros(2,2), nameConfBand1="1", nameConfBand2="2", offset = 0, indBand = 1)
 
     parDgpT = parDgpTIn[:, 1:end-offset]
     confBands1 = confBands1In[:, 1+offset:end, :, :]
@@ -1084,7 +1114,7 @@ function plot_filtered_and_conf_bands(model::GasNetModel, N, fVecT_filtIn, confB
         margin = 0.5*delta
         ax[p].plot(x, fVecT_filt[p,:], "b", alpha =0.5)
         # ax[p].set_ylim([bottom - margin, top + margin])
-        for b in 1:nBands
+        for b = indBand
             if sum(confBands1) !=0
                 ax[p].fill_between(x, confBands1[p, :, b,1], y2 =confBands1[p,:,b, 2],color =(0.9, 0.2 , 0.2, 0.1), alpha = 0.2*b/nBands  )#, color='b', alpha=.1)
             end
@@ -1098,14 +1128,14 @@ function plot_filtered_and_conf_bands(model::GasNetModel, N, fVecT_filtIn, confB
     end
 
     if sum(confBands1) !=0
-        cov1 = round(mean(conf_bands_coverage(parDgpTIn, confBands1In; offset=offset)), digits=2)
+        cov1 = round(mean(conf_bands_coverage(parDgpTIn, confBands1In; offset=offset)[:,:,indBand]), digits=2)
     else
         cov1 = 0
     end
-    titleString = "$(name(model)), N = $N, T=$T, \n  $nameConfBand1 = $cov1"
+    titleString = "$(name(model)), N = $N, T=$(T + offset), \n  $nameConfBand1 = $cov1"
 
     if confBands2 != zeros(2,2)
-        cov2 = round(mean(conf_bands_coverage(parDgpTIn, confBands2In; offset=offset)), digits=2)
+        cov2 = round(mean(conf_bands_coverage(parDgpTIn, confBands2In; offset=offset)[:,:,indBand]), digits=2)
         titleString = titleString * " $nameConfBand2 = $cov2"
     end
 
@@ -1128,7 +1158,7 @@ function estimate_and_filter(model::GasNetModel, N, obsT; indTvPar = model.indTv
 end
     
 
-function conf_bands_given_SD_estimates(model::GasNetModel, N, obsT, vEstSdResPar, ftot_0, quantilesVals::Vector{Vector{Float64}}; indTvPar = model.indTvPar, parDgpT=zeros(2,2), plotFlag=false, parUncMethod = "WHITE-MLE", dropOutliers = true, offset = 1,  nSample = 500 , mvSDUnParEstCov = zeros(3,3))
+function conf_bands_given_SD_estimates(model::GasNetModel, N, obsT, vEstSdResPar, ftot_0, quantilesVals::Vector{Vector{Float64}}; indTvPar = model.indTvPar, parDgpT=zeros(2,2), plotFlag=false, parUncMethod = "WHITE-MLE", dropOutliers = false, offset = 1,  nSample = 500 , mvSDUnParEstCov = zeros(3,3))
     
     T = length(obsT)
 

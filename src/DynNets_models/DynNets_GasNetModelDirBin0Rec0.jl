@@ -7,11 +7,23 @@ Base.@kwdef struct  GasNetModelDirBin0Rec0_mle <: GasNetModelDirBin0Rec0
     staticModel = NetModelDirBin0Rec0()
     indTvPar :: BitArray{1} = trues(2) #  what parameters are time varying   ?
     scoreScalingType::String = "HESS_D" # String that specifies the rescaling of the score. For a list of possible choices see function scalingMatGas
+    options::SortedDict{Any, Any} = SortedDict()
 end
 export GasNetModelDirBin0Rec0_mle
 
+d = SortedDict(["first" => 31, "second" => "val"])
 
-name(x::GasNetModelDirBin0Rec0_mle) = "GasNetModelDirBin0Rec0_mle($(x.indTvPar), scal = $(x.scoreScalingType))"
+
+
+function name(x::GasNetModelDirBin0Rec0_mle)  
+    if isempty(x.options)
+        optString = ""
+    else
+        optString = ", " * reduce(*,["$k = $v, " for (k,v) in x.options])[1:end-2]
+    end
+
+    "GasNetModelDirBin0Rec0_mle($(x.indTvPar), scal = $(x.scoreScalingType)$optString)"
+end
 export name
 
 Base.string(x::GasNetModelDirBin0Rec0) = name(x::GasNetModelDirBin0Rec0) 
@@ -31,8 +43,14 @@ function starting_point_optim(model::T where T <:GasNetModelDirBin0Rec0, indTvPa
     
     # #set the starting points for the optimizations
     B0_Re  = 0.98; B0_Un = log(B0_Re ./ (1 .- B0_Re ))
-    ARe_min =0.00001
-    A0_Re  = 0.1 ; A0_Un = log(A0_Re  .-  ARe_min)
+    ARe_min =1e-8
+    if contains(model.scoreScalingType, "FISH")
+        A0_Re  = 0.00001 ; 
+    elseif contains(model.scoreScalingType, "HESS")
+        A0_Re  = 0.1 ; 
+    end    
+    
+    A0_Un = log(A0_Re  .-  ARe_min)
     
     # starting values for the vector of parameters that have to be optimized
     vParOptim_0 = zeros(nErgmPar + nTvPar*2 - NTargPar)
@@ -78,7 +96,7 @@ function scalingMatGas(model::T where T<: GasNetModelDirBin0Rec0,expMat::Array{<
 end
 
 
-function target_function_t(model::GasNetModelDirBin0Rec0_mle, obs_t, f_t)
+function target_function_t(model::GasNetModelDirBin0Rec0_mle, obs_t, N, f_t)
 
     L, R, N = obs_t
 
@@ -89,9 +107,49 @@ end
 
 
 
-function target_function_t_fisher(model::T where T<: GasNetModel, obs_t, f_t)
+function target_function_t_grad(model::GasNetModelDirBin0Rec0_mle, obs_t, N, f_t)
+    
+    L, R, N = obs_t
+    
+    θ, η = f_t
+    x = exp(θ)
+
+    x2y = exp(2θ + η)
+    
+    Z = (1 + 2x + x2y )
+    g_θ = L - (N^2-N) * (x + x2y)/Z
+    g_η = R - (N^2-N)/2* (x2y)/Z
+    
+    grad_tot_t = [g_θ, g_η]
+
+    return grad_tot_t
+end
+
+
+function target_function_t_hess(model::GasNetModelDirBin0Rec0_mle, obs_t, N, f_t)
+    
+    θ, η = f_t
+    x = exp(θ)
+
+    x2y = exp(2θ + η)
+    xy = exp(θ + η)
+    
+    Z = (1 + 2x + x2y )
+    h_θ_θ = - x*(1 + 2*xy + x2y)
+    h_θ_η = - x2y *(1 + x)
+    h_η_η = - x2y/2*(1 + 2*x)
+    
+    hess_tot_t = (N^2-N).*[h_θ_θ h_θ_η; h_θ_η h_η_η]./(Z^2)
+
+    return hess_tot_t
+end
+
+
+
+
+function target_function_t_fisher(model::GasNetModelDirBin0Rec0_mle, obs_t, N, f_t)
     # information equality holds and hessian does not depend on observations, hence taking the expectation does not change the result
-    return  - target_function_t_hess(model, obs_t, f_t) 
+    return  - target_function_t_hess(model, obs_t, N, f_t) 
 end
 
 
@@ -106,7 +164,7 @@ end
 
 
 
-GasNetModelDirBin0Rec0_pmle(scoreScalingType::String) = SdErgmPml(staticModel = NetModeErgmPml(ergm_term_string(NetModelDirBin0Rec0()), true), indTvPar = trues(2), scoreScalingType=scoreScalingType)
+GasNetModelDirBin0Rec0_pmle(;scoreScalingType="FISH_D", options=SortedDict()) = SdErgmPml(staticModel = NetModeErgmPml(ergm_term_string(NetModelDirBin0Rec0()), true), indTvPar = trues(2), scoreScalingType=scoreScalingType, options=options)
 export GasNetModelDirBin0Rec0_pmle
 
 
@@ -138,7 +196,7 @@ function beta_min_max_from_alpha_min(minAlpha, N;  minBeta = minAlpha/5 )
 end
 
 
-function sample_time_var_par_from_dgp(model::GasNetModelDirBin0Rec0, dgpType, N, T;  minAlpha = [0.25], maxAlpha = [0.3], nCycles = [2], phaseshift = [0.1], plotFlag=false, phaseAlpha = 0, sigma = [0.01], B = [0.95], A=[0.001], maxAttempts = 5000, indTvPar=trues(number_ergm_par(model)))
+function sample_time_var_par_from_dgp(model::GasNetModelDirBin0Rec0, dgpType, N, T;  minAlpha = [0.25], maxAlpha = [0.3], nCycles = [2], phaseshift = [0.1], plotFlag=false, phaseAlpha = 0, sigma = [0.01], B = [0.95], A=[0.01], maxAttempts = 5000, indTvPar=trues(number_ergm_par(model)))
 
     minBeta, maxBeta =  beta_min_max_from_alpha_min(minAlpha[1], N)
 
@@ -182,17 +240,16 @@ function sample_time_var_par_from_dgp(model::GasNetModelDirBin0Rec0, dgpType, N,
     
             UM = alpha_beta_to_theta_eta(meanValAlpha, meanValBeta, N)
 
-            model_mle = GasNetModelDirBin0Rec0_mle()
             Logging.@warn(" the score driven DGP used is the Maximum Likelihood one. PML is too slow")
 
-            vUnPar, ~ = DynNets.starting_point_optim(model_mle, indTvPar, UM)
-            vResParDgp = DynNets.restrict_all_par(model_mle, indTvPar, vUnPar)
+            vUnPar, ~ = DynNets.starting_point_optim(model, indTvPar, UM)
+            vResParDgp = DynNets.restrict_all_par(model, indTvPar, vUnPar)
 
             vResParDgp[2:3:end] .= B[1]
             vResParDgp[3:3:end].= A[1]
             vResParDgp = Real.(vResParDgp)
 
-            fVecT, ~, ~ = DynNets.score_driven_filter_or_dgp( model_mle, N, vResParDgp, indTvPar; dgpNT = (N,T))
+            fVecT, ~, ~ = DynNets.score_driven_filter_or_dgp( model, N, vResParDgp, indTvPar; dgpNT = (N,T))
 
             global θ_η_parDgpT = fVecT
 
@@ -224,6 +281,8 @@ end
 
 function list_example_dgp_settings(model::GasNetModelDirBin0Rec0)
 
+    dgpSetARlowlow = (type = "AR", opt = (B =[0.98], sigma = [0.005]))
+    
     dgpSetARlow = (type = "AR", opt = (B =[0.98], sigma = [0.01]))
 
     dgpSetARmed = (type = "AR", opt = (B =[0.98], sigma = [0.05]))
@@ -232,11 +291,13 @@ function list_example_dgp_settings(model::GasNetModelDirBin0Rec0)
 
     dgpSetSIN = (type = "SIN", opt = ( nCycles=[1.5]))
 
+    dgpSetSDlow = (type = "SD", opt = (B =[0.98], A = [0.01]))
+
     dgpSetSD = (type = "SD", opt = (B =[0.98], A = [0.3]))
     
     dgpSetSDhigh = (type = "SD", opt = (B =[0.98], A = [3]))
 
-    return (; dgpSetARlow, dgpSetARmed, dgpSetARhigh, dgpSetSIN, dgpSetSD, dgpSetSDhigh)
+    return (; dgpSetARlowlow, dgpSetARlow, dgpSetARmed, dgpSetARhigh, dgpSetSIN, dgpSetSDlow, dgpSetSD, dgpSetSDhigh)
 end
 
 

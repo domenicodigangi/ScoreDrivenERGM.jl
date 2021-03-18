@@ -70,8 +70,7 @@ end
 
 function fisher_info_pseudo_loglikelihood_strauss_ikeda(par, changeStat,  weights)
 
-     hessian_pseudo_loglikelihood_strauss_ikeda(par, changeStat, weights)
-    
+    - hessian_pseudo_loglikelihood_strauss_ikeda(par, changeStat, weights)
 end
 
 

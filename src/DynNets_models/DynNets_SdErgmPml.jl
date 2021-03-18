@@ -6,6 +6,7 @@ Base.@kwdef struct  SdErgmPml <: GasNetModel
     staticModel::NetModeErgmPml
     indTvPar :: BitArray{1} 
     scoreScalingType::String = "HESS_D" # String that specifies the rescaling of the score. For a list of possible choices see function scalingMatGas
+    options::SortedDict{Any, Any} = SortedDict()
 end
 export SdErgmPml
 
@@ -15,10 +16,16 @@ SdErgmPml(ergmTermsString::String, isDirected::Bool) = SdErgmPml(NetModeErgmPml(
 
 
 function name(x::SdErgmPml) 
-    if x.staticModel.ergmTermsString == ergm_term_string(NetModelDirBin0Rec0())
-        return "GasNetModelDirBin0Rec0_pmle($(x.indTvPar), scal = $(x.scoreScalingType))"
+    if isempty(x.options)
+        optString = ""
     else
-        return "SdErgmPML($(x.staticModel.ergmTermsString), $(x.indTvPar), scal = $(x.scoreScalingType))"
+        optString = ", " * reduce(*,["$k = $v, " for (k,v) in x.options])[1:end-2]
+    end
+    
+    if x.staticModel.ergmTermsString == ergm_term_string(NetModelDirBin0Rec0())
+        return  "GasNetModelDirBin0Rec0_pmle($(x.indTvPar), scal = $(x.scoreScalingType)$optString)"
+    else
+        return  "SdErgmPML($(x.indTvPar), scal = $(x.scoreScalingType)$optString)"
     end
 end
 
@@ -35,7 +42,7 @@ function static_estimate(model::SdErgmPml, A_T)
 end
 
 
-function target_function_t(model::SdErgmPml, obs_t, par)
+function target_function_t(model::SdErgmPml, obs_t, N, par)
  
     changeStat, response, weights = ErgmRcall.decomposeMPLEmatrix(obs_t)
  
@@ -45,7 +52,7 @@ function target_function_t(model::SdErgmPml, obs_t, par)
 end
 
 
-function target_function_t_grad(model::SdErgmPml, obs_t, f_t) 
+function target_function_t_grad(model::SdErgmPml, obs_t, N, f_t) 
 
     changeStat, response, weights = ErgmRcall.decomposeMPLEmatrix(obs_t)
     
@@ -53,7 +60,7 @@ function target_function_t_grad(model::SdErgmPml, obs_t, f_t)
 end
 
 
-function target_function_t_hess(model::SdErgmPml, obs_t, f_t) 
+function target_function_t_hess(model::SdErgmPml, obs_t, N, f_t) 
 
     changeStat, response, weights = ErgmRcall.decomposeMPLEmatrix(obs_t)
     
@@ -61,7 +68,7 @@ function target_function_t_hess(model::SdErgmPml, obs_t, f_t)
 
 end
 
-function target_function_t_fisher(model::SdErgmPml, obs_t, f_t) 
+function target_function_t_fisher(model::SdErgmPml, obs_t, N,  f_t) 
 
     changeStat, response, weights = ErgmRcall.decomposeMPLEmatrix(obs_t)
     
@@ -72,6 +79,6 @@ end
 
 function reference_model(model::SdErgmPml) 
     if model.staticModel.ergmTermsString == ergm_term_string(NetModelDirBin0Rec0())
-        return GasNetModelDirBin0Rec0_mle()
+        return GasNetModelDirBin0Rec0_mle(scoreScalingType=model.scoreScalingType, indTvPar = model.indTvPar)
     end
 end
