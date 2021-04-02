@@ -14,7 +14,6 @@ export GasNetModelDirBin0Rec0_mle
 d = SortedDict(["first" => 31, "second" => "val"])
 
 
-
 function name(x::GasNetModelDirBin0Rec0_mle)  
     if isempty(x.options)
         optString = ""
@@ -26,11 +25,13 @@ function name(x::GasNetModelDirBin0Rec0_mle)
 end
 export name
 
+
 Base.string(x::GasNetModelDirBin0Rec0) = name(x::GasNetModelDirBin0Rec0) 
 export string
 
 
 reference_model(model::GasNetModelDirBin0Rec0_mle) = model
+
 
 """
 Given the flag of constant parameters, a starting value for their unconditional means (their constant value, for those constant), return a starting point for the optimization
@@ -106,7 +107,6 @@ function target_function_t(model::GasNetModelDirBin0Rec0_mle, obs_t, N, f_t)
 end
 
 
-
 function target_function_t_grad(model::GasNetModelDirBin0Rec0_mle, obs_t, N, f_t)
     
     L, R, N = obs_t
@@ -143,8 +143,6 @@ function target_function_t_hess(model::GasNetModelDirBin0Rec0_mle, obs_t, N, f_t
 
     return hess_tot_t
 end
-
-
 
 
 function target_function_t_fisher(model::GasNetModelDirBin0Rec0_mle, obs_t, N, f_t)
@@ -335,7 +333,7 @@ function sample_est_mle_pmle(model::GasNetModelDirBin0Rec0, parDgpT, N, Nsample;
     for n=1:Nsample
         ## sample dgp
         A_T_dgp = sample_mats_sequence(model_mle, parDgpT, N)
-        stats_T_dgp = [statsFromMat(model_mle, A_T_dgp[:,:,t]) for t in 1:T ]
+        stats_T_dgp = [stats_from_mat(model_mle, A_T_dgp[:,:,t]) for t in 1:T ]
         change_stats_T_dgp = change_stats(model_pmle, A_T_dgp)
 
 

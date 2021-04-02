@@ -18,7 +18,7 @@ using DataStructures
 model = DynNets.GasNetModelDirBin0Rec0_pmle(scoreScalingType ="FISH_D")
 model_mle = DynNets.GasNetModelDirBin0Rec0_mle(scoreScalingType="FISH_D")
 model_2 = model_mle
-model_3 =  DynNets.GasNetModelDirBin0Rec0_pmle(scoreScalingType="FISH_D", options = SortedDict("Firth" => true))
+# model_3 =  DynNets.GasNetModelDirBin0Rec0_pmle(scoreScalingType="FISH_D", options = SortedDict("Firth" => true))
 
 
 
@@ -31,7 +31,7 @@ quantileVals = [[0.975, 0.025]]
 listDgpSettigns = DynNets.list_example_dgp_settings(model_mle)
 # dgpSet = listDgpSettigns.dgpSetSD
 # dgpSet.opt.A[1] = 1
-dgpSet = listDgpSettigns.dgpSetSDlow
+dgpSet = listDgpSettigns.dgpSetARlow
 
 
 parDgpT = DynNets.sample_time_var_par_from_dgp(model_mle, dgpSet.type, N, T;  dgpSet.opt...)
@@ -49,38 +49,86 @@ end
 end
 
 @time begin
-    obsT, vEstSdResPar, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0, confBandsFiltPar, confBandsPar, errFlag = DynNets.estimate_filter_and_conf_bands(model_3, A_T, parDgpT=parDgpT, quantileVals, plotFlag=true);    
-    res_3 = 
-    (;  obsT, vEstSdResPar, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0, confBandsFiltPar, confBandsPar, errFlag)
+    #     obsT, vEstSdResPar, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0, confBandsFiltPar, confBandsPar, errFlag = DynNets.estimate_filter_and_conf_bands(model_3, A_T, parDgpT=parDgpT, quantileVals, plotFlag=true);    
+    #     res_3 = 
+    #     (;  obsT, vEstSdResPar, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0, confBandsFiltPar, confBandsPar, errFlag)
 end
 
 
-res.vEstSdResPar 
-res_2.vEstSdResPar
-res_3.vEstSdResPar
+# Single snapshot estimators
+begin
+fVecT_filt_SS =  DynNets.estimate_single_snap_sequence(model, A_T)
 
-mvSDUnParEstCov, errFlagEstCov = DynNets.white_estimate_cov_mat_static_sd_par(model_2, N, res_2.obsT, model_2.indTvPar, res_2.ftot_0, res_2.vEstSdResPar)
+fVecT_filt_SS_2 =  DynNets.estimate_single_snap_sequence(model_2, A_T)
 
-mvSDUnParEstCov[I(6)]
+fig, ax =  DynNets.plot_filtered(model, N, fVecT_filt_SS; lineType = ".", lineColor="r", parDgpTIn=parDgpT)
+DynNets.plot_filtered(model, N, fVecT_filt_SS_2; lineType = ".", lineColor="b", parDgpTIn=parDgpT, fig=fig, ax=ax)
+DynNets.plot_filtered(model, N, fVecT_filt; lineType = "-", parDgpTIn=parDgpT, fig=fig, ax=ax)
+DynNets.plot_filtered(model, N, mapslices(rolling_mean,fVecT_filt_SS, dims=2); lineType = "-", parDgpTIn=parDgpT, fig=fig, ax=ax)
+ 
+end
 
-distribFilteredSD, filtCovHatSample,  _, errFlagSample = DynNets.distrib_filtered_par_from_mv_normal(model_2, N, res_2.obsT, model_2.indTvPar, res_2.ftot_0, res_2.vEstSdResPar, mvSDUnParEstCov)
-
-plot(distribFilteredSD[:,2,:])
-
-
-
-f_t = res_2.fVecT_filt[:,10]
-obs_t = res_2.obsT[10]
-target_fun_t(x) = DynNets.target_function_t(model_mle, obs_t, N, x)
-
-using ForwardDiff
-hess_tot_t = ForwardDiff.hessian(target_fun_t, f_t)
-target_function_t_hess(model_mle, obs_t, N, f_t)
+@show var(parDgpT, dims=2)
+@show var(fVecT_filt, dims=2)
+@show var(fVecT_filt_SS, dims=2)
 
 
-ForwardDiff.gradient(target_fun_t, f_t)
+# Compare estimators of variances of static parameter's estimators
+mvSDUnParEstCovWhite, errFlagEstCov = DynNets.white_estimate_cov_mat_static_sd_par(model_2, N, res_2.obsT, model_2.indTvPar, res_2.ftot_0, res_2.vEstSdResPar)
 
-target_function_t_grad(model_mle, obs_t, N, f_t)
+mvSDUnParEstCovWhite[I(6)]
+
+distribFilteredSDParBoot, filtCovHatSample, errFlagVec , vEstSdUnParBootDist = DynNets.par_bootstrap_distrib_filtered_par(model_2, N, res_2.obsT, model_2.indTvPar, res_2.ftot_0, res_2.vEstSdResPar)
+
+
+vEstSdUnParNPBootDist = DynNets.non_par_bootstrap_distrib_filtered_par(model_2, N, obsT, model_2.indTvPar, ftot_0; nBootStrap = 100)
+
+figure()
+hist(filtCovHatSample')
+mapslices( x -> mean(winsor(x, prop=0.005)), filtCovHatSample, dims=2)
+
+using ScikitLearn
+@sk_import covariance: MinCovDet
+
+
+DynNets.conf_bands_given_SD_estimates(model_2, N, res_2.obsT, vEstSdUnPar, res_2.ftot_0, [[0.975, 0.025]]; parDgpT=parDgpT, plotFlag=true, parUncMethod = "WHITE-MLE", offset = 0, mvSDUnParEstCov = 0.3 .*mvSDUnParEstCovWhite, winsorProp=0.05)
+
+DynNets.conf_bands_given_SD_estimates(model_2, N, res_2.obsT, vEstSdUnPar, res_2.ftot_0, [[0.975, 0.025]]; parDgpT=parDgpT, plotFlag=true, parUncMethod = "NPB-MVN", offset = 0, mvSDUnParEstCov = MinCovDet().fit(Utilities.drop_bad_un_estimates(vEstSdUnParNPBootDist)').covariance_, winsorProp=0.05)
+
+DynNets.conf_bands_given_SD_estimates(model_2, N, res_2.obsT, vEstSdUnPar, res_2.ftot_0, [[0.975, 0.025]]; parDgpT=parDgpT, plotFlag=true, parUncMethod = "PB-MVN", offset = 0, mvSDUnParEstCov = MinCovDet().fit(Utilities.drop_bad_un_estimates(vEstSdUnParBootDist)').covariance_, winsorProp=0.05)
+
+
+DynNets.conf_bands_given_SD_estimates(model_2, N, res_2.obsT, vEstSdUnPar, res_2.ftot_0, [[0.975, 0.025]]; parDgpT=parDgpT, plotFlag=true, parUncMethod = "PB-SAMPLE", offset = 0, sampleStaticUnPar=Utilities.drop_bad_un_estimates(vEstSdUnParBootDist), winsorProp=0 )
+
+
+
+if true
+parNames = ["w_theta", "B_theta", "A_theta", "w_eta", "B_eta", "A_eta"]
+sample1 = vEstSdUnParBootDist
+sample1 = Utilities.drop_bad_un_estimates(sample1)
+
+fig, ax = subplots(3,2)
+redLines = DynNets.unrestrict_all_par(model_2, model_2.indTvPar, res_2.vEstSdResPar)
+    if true
+        sample1 = mapslices(x -> DynNets.restrict_all_par(model_2, model_2.indTvPar, x), sample1, dims=1)
+        redLines = res_2.vEstSdResPar
+    end
+
+for i = 1:6
+    ax[i].hist(sample1[i,:], range=quantile(sample1[i,:], [0.01, 0.99]), 20, alpha = 0.4, density=true)
+    ax[i].set_title(parNames[i])
+    ylim = ax[i].get_ylim()
+    ax[i].vlines(redLines[i], ylim[1], ylim[2], color = "r" )
+
+end
+end
+
+plt.figure()
+plt.hist(mvSDUnParEstCovParBoot[3, :])
+
+distribFilteredSD, filtCovHatSample,  _, errFlagSample = DynNets.distrib_filtered_par_from_mv_normal(model_2, N, res_2.obsT, model_2.indTvPar, res_2.ftot_0, res_2.vEstSdUnPar, mvSDUnParEstCov)
+
+
 
 
 # nBootStrap = 150
@@ -101,74 +149,12 @@ target_function_t_grad(model_mle, obs_t, N, f_t)
 # IL PROBLEMA € NELLA MATRICE DI VARIANZA COVARIANZA STIMATA CON WHITE. QUELLA NON HA LA GIUSTA MAGNITUDE, quando i parametri time varying variano molto
 
 
-# @time fVecT_filt, confBandsFiltPar, confBandsPar, errFlag, mvSDUnParEstCovBoot, distribFilteredSD = DynNets.conf_bands_given_SD_estimates(model, N, res.obsT, res.vEstSdResPar, res.ftot_0, quantileVals; indTvPar = model.indTvPar, parDgpT=parDgpT, plotFlag=true, parUncMethod = "NPB-SAMPLE")
-
-
-BMatSD, AMatSD = DynNets.divide_in_B_A_mats_as_if_all_TV(model, model.indTvPar, res.vEstSdResPar)
-
-constFiltUncCoeff = (BMatSD.^(-1)).*AMatSD
-        
-distribFilteredSD, filtCovHatSample, mvSDUnParEstCov, errFlagMvNormSample = DynNets.distrib_filtered_par_from_mv_normal(model, N, res.obsT, model.indTvPar, res.ftot_0, res.vEstSdResPar, mvSDUnParEstCov)
-
-mean(filtCovHatSample, dims=3)
 
 
 
-@time fVecT_filt, confBandsFiltPar, confBandsPar, errFlag, mvSDUnParEstCov, distribFilteredSD = DynNets.conf_bands_given_SD_estimates(model, N, res.obsT, res.vEstSdResPar, res.ftot_0, quantileVals; indTvPar = model.indTvPar, parDgpT=parDgpT, plotFlag=true, parUncMethod = "WHITE-MLE", offset=1 )
+# @time fVecT_filt, confBandsFiltPar, confBandsPar, errFlag, mvSDUnParEstCov, distribFilteredSD = DynNets.conf_bands_given_SD_estimates(model, N, res.obsT, res.vEstSdResPar, res.ftot_0, quantileVals; indTvPar = model.indTvPar, parDgpT=parDgpT, plotFlag=true, parUncMethod = "NPB-MVN")
 
 
-@time fVecT_filt, confBandsFiltPar, confBandsPar, errFlag, mvSDUnParEstCov, distribFilteredSD = DynNets.conf_bands_given_SD_estimates(model_mle, N, res_mle.obsT, res_mle.vEstSdResPar, res_mle.ftot_0, quantileVals; indTvPar = model.indTvPar, parDgpT=parDgpT, plotFlag=true, parUncMethod = "WHITE-MLE", offset=1 )
-
-@time fVecT_filt, confBandsFiltPar, confBandsPar, errFlag, mvSDUnParEstCov, distribFilteredSD = DynNets.conf_bands_given_SD_estimates(model_mle, N, res_mle.obsT, res_mle.vEstSdResPar, res_mle.ftot_0, quantileVals; indTvPar = model.indTvPar, parDgpT=parDgpT, plotFlag=true, parUncMethod = "NPB-COV-MAT", offset=1 )
-
-
-# @time fVecT_filt, confBandsFiltPar, confBandsPar, errFlag, mvSDUnParEstCov, distribFilteredSD = DynNets.conf_bands_given_SD_estimates(model, N, res.obsT, res.vEstSdResPar, res.ftot_0, quantileVals; indTvPar = model.indTvPar, parDgpT=parDgpT, plotFlag=true, parUncMethod = "NPB-COV-MAT")
-
-
-
-
-begin
-nBootStrap = 50
-vEstSdUnParBootDist = SharedArray(zeros(3*sum(model.indTvPar), nBootStrap))
-
-w = ones(T)# dropdims( sqrt.(sum(res.sVecT_filt.^2, dims=1)) , dims=1)
-
-weights = Weights(w./sum(w))
-@time Threads.@threads for k=1:nBootStrap
-    vEstSdUnParBootDist[:, k] = sample(1:T, weights, T) |> (inds->(inds |> x-> DynNets.estimate(model, N, res.obsT; indTvPar=model.indTvPar, ftot_0 = res.ftot_0, shuffleObsInds = x) |> x-> getindex(x, 1) |> x -> DynNets.array2VecGasPar(model, x, model.indTvPar))) |> x -> DynNets.unrestrict_all_par(model, model.indTvPar, x)
-end
-end
-
-begin
-mvSDUnParEstCov, errFlagEstCov = cov(drop_bad_un_estimates(vEstSdUnParBootDist)'), false
-# mvSDUnParEstCov[I(6)] = [abs(diff(quantile(s, [1- (1-P)/2, (1-P)/2] ))[1]/2) for s in eachrow(vEstSdUnParBootDist)]
-# mvSDUnParEstCov[I(6)] = cov(vEstSdUnParBootDist')[I(6)]
-mvSDUnParEstCov, minEigenVal = Utilities.make_pos_def(mvSDUnParEstCov)
-# mvSDUnParEstCov = Symmetric(mvSDUnParEstCov)
-
-#  distribFilteredSD, filtCovHatSample, mvSDUnParEstCov, errFlagMvNormSample = DynNets.distrib_filtered_par_from_mv_normal(model, N, obsT, model.indTvPar, ftot_0, vEstSdResPar, mvSDUnParEstCov)
-
-distribFilteredSD, filtCovHatSample, errFlagSample = DynNets.distrib_filtered_par_from_sample(model, N, obsT, model.indTvPar, ftot_0, vEstSdUnParBootDist)
-
-confBandsFiltPar,  confBandsPar = DynNets.conf_bands_buccheri(model, N, obsT, model.indTvPar, res.fVecT_filt, distribFilteredSD, filtCovHatSample, quantileVals, false)
-
-
-DynNets.plot_filtered_and_conf_bands(model, N, fVecT_filt, confBandsFiltPar ; parDgpTIn=parDgpT, nameConfBand1= " - Filter+Par", nameConfBand2= "Par", confBands2In=confBandsPar, offset = 1)
-
-
-vEstSdResParBootDist = mapslices(x -> DynNets.restrict_all_par(model, model.indTvPar, x ), vEstSdUnParBootDist, dims=1)
-parNames = ["w_theta", "B_theta", "A_theta", "w_eta", "B_eta", "A_eta"]
-sample1 = vEstSdResParBootDist
-sample1 = Utilities.drop_bad_un_estimates(vEstSdUnParBootDist)
-fig, ax = subplots(3,2)
-for i = 1:6
-    ax[i].hist(sample1[i,:], range=quantile(sample1[i,:], [0.01, 0.99]), 20, alpha = 0.4)
-    ax[i].set_title(parNames[i])
-    ylim = ax[2,1].get_ylim()
-    # ax[i].vlines(res.vEstSdResPar[i], ylim[1], ylim[2], color = "r" )
-
-end
-end
 
 
 

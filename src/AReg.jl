@@ -1,6 +1,7 @@
 module AReg
 using PolynomialRoots
 using StatsBase
+using Statistics
 
 export ARp, ARp_est, fit , simulate,simulateAR1, unc_mean
 ##
@@ -15,6 +16,7 @@ mutable struct ARp_est
     ar::ARp
     obs::Vector{Real}
     estimates::Vector{Real}
+    sigma::Real
 end
 
 
@@ -40,8 +42,9 @@ end
 To Do : need to add a method for the observations only.. it should return the
 ARp_est with optimal p
 "
-function fitARp(obs::Vector{<:Real},arp::ARp;demean=true)
-    p = length(arp.vecpar)-1 # number of autoregressive terms (constant excluded)
+function fitARp(obs::Vector{<:Real}, order;demean=true)
+    p = order # number of autoregressive terms (constant excluded)
+    
     ## Ols estimation of the AR(p) coefficients
     Y = obs[p+1:end]
     T = length(Y)
@@ -52,10 +55,17 @@ function fitARp(obs::Vector{<:Real},arp::ARp;demean=true)
     end
 
     est_par = (X'*X)\(X'Y)
-    #est_par = (X'*X)\(X'Y)
-    return ARp_est(arp,obs,est_par)
+    #standard deviation of residuals
+    sigma = std(X*est_par - Y)
+    return est_par, sigma
 end
-##
+
+function fitARp(obs::Vector{<:Real},arp::ARp;demean=true)
+    p = length(arp.vecpar)-1
+    est_par, sigma = fitARp(obs, p)
+    
+    return ARp_est(arp,obs,est_par, sigma)
+end
 
 "Sample an AR process of lenght T and  parameters specified in vecpar starting
 from phi_0 to phi_p where p is the order of the process"

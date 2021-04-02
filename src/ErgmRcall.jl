@@ -172,55 +172,26 @@ function get_change_stats(A::Matrix{T} where T<:Integer, ergmTermsString::String
 end
 export get_change_stats
 
-function get_mple(A::Matrix{T} where T<:Integer, ergmTermsString::String)
+
+""" Get a single pmle from adjacency matrix""" 
+function get_one_mple(A::Matrix{T} where T<:Integer, ergmTermsString::String)
     @rput A
     reval("formula_ergm = net ~ "* ergmTermsString)
     # store the sufficient statistics and change statistics in R
     R"""
         net <- network(A)
         mple_t_R <- ergmMPLE(formula_ergm, output="fit")$coef
-        print(mple_t_R)
+        # print(mple_t_R)
         """
 
     mple_t = @rget mple_t_R;# tmp = Array{Array{Float64,2}}(T); for 
     return mple_t
 end
-export get_mple
+export get_one_mple
 
-# function get_static_mple(A_T::Array{T,3} where T<:Integer, ergmTermsString::String)
 
-#     T = size(A_T )[3]
-#     # For each t, sample the ERGM with parameters corresponding to the DGP at time t
-#     # and run a single snapeshot estimate
-#     @rput T
-#     @rput A_T
-#     reval("formula_ergm = net ~ "* ergmTermsString)
-#     # store the sufficient statistics and change statistics in R
-#     R"""
-#     net <- network(A_T[,,1])
-#     mple_t_R <- ergmMPLE(formula_ergm)   
-#     dfPred = data.frame( mple_t_R$predictor )
-#     dfWeights = data.frame( mple_t_R$weights )
-#     dfResp = data.frame( mple_t_R$response )
-#     for (t in 2:T){
-#         net <- network(A_T[,,t])
-#         mple_t_R <- ergmMPLE(formula_ergm)
-#         dfPred <- rbind(dfPred, data.frame(mple_t_R$predictor))
-#         dfWeights <- rbind(dfWeights, data.frame(mple_t_R$weights))
-#         dfResp <- rbind(dfResp, data.frame(mple_t_R$response))
-#         df <- rbind(df, data.frame(mple_t_R))
-#         }
-#         mple_static_R <- glm(dfResp$mple_t_R.response ~ . -1, data = dfPred, weights = dfWeights$mple_t_R.weights,family="binomial")$coefficients
-#         """
-
-#     mple_static = @rget mple_static_R;# tmp = Array{Array{Float64,2}}(T); for 
-
-#     return mple_static
-# end
-
-function get_static_mple(changeStats_T::Array{T,2} where T<:Real, ergmTermsString::String)
-    clean_start_RCall()
-    # For each t, sample the ERGM with parameters corresponding to the DGP at time t
+""" Get a single pmle from change statistics for a single network""" 
+function get_one_mple(changeStats_T::Array{T,2} where T<:Real, ergmTermsString::String)
     # and run a single snapeshot estimate
     @rput changeStats_T
     reval("formula_ergm = net ~ "* ergmTermsString)
@@ -233,11 +204,12 @@ function get_static_mple(changeStats_T::Array{T,2} where T<:Real, ergmTermsStrin
 
     return mple_static
 end
-function get_static_mple(changeStats_T::Array{Array{T,2},1} where T<:Real, ergmTermsString::String)
-    return get_static_mple(reduce(vcat,changeStats_T), ergmTermsString)
-end
-export get_static_mple
 
+""" Get a single pmle from change statistics for a sequence of networks""" 
+function get_one_mple(changeStats_T::Array{Array{T,2},1} where T<:Real, ergmTermsString::String)
+    return get_one_mple(reduce(vcat,changeStats_T), ergmTermsString)
+end
+export get_one_mple
 
 
 function decomposeMPLEmatrix(ergmMPLEmatrix)  

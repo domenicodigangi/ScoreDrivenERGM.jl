@@ -33,11 +33,11 @@ end
 
 
 
-statsFromMat(model::SdErgmPml, A ::Matrix{<:Real}) = StaticNets.change_stats(model.staticModel, A)
+stats_from_mat(model::SdErgmPml, A ::Matrix{<:Real}) = StaticNets.change_stats(model.staticModel, A)
 
 
 function static_estimate(model::SdErgmPml, A_T)
-    staticPars = ErgmRcall.get_static_mple(A_T, model.staticModel.ergmTermsString)
+    staticPars = ErgmRcall.get_one_mple(A_T, model.staticModel.ergmTermsString)
     return staticPars
 end
 
@@ -46,7 +46,7 @@ function target_function_t(model::SdErgmPml, obs_t, N, par)
  
     changeStat, response, weights = ErgmRcall.decomposeMPLEmatrix(obs_t)
  
-    pll = StaticNets.pseudo_loglikelihood_strauss_ikeda( par, changeStat, response, weights)
+    pll = StaticNets.obj_fun( par, changeStat, response, weights)
 
     return pll
 end
@@ -56,7 +56,7 @@ function target_function_t_grad(model::SdErgmPml, obs_t, N, f_t)
 
     changeStat, response, weights = ErgmRcall.decomposeMPLEmatrix(obs_t)
     
-    return StaticNets.grad_pseudo_loglikelihood_strauss_ikeda(f_t, changeStat, response, weights)
+    return StaticNets.grad_obj_fun(f_t, changeStat, response, weights)
 end
 
 
@@ -64,7 +64,7 @@ function target_function_t_hess(model::SdErgmPml, obs_t, N, f_t)
 
     changeStat, response, weights = ErgmRcall.decomposeMPLEmatrix(obs_t)
     
-    return StaticNets.hessian_pseudo_loglikelihood_strauss_ikeda(f_t, changeStat, weights)
+    return StaticNets.hessian_obj_fun(f_t, changeStat, weights)
 
 end
 
@@ -72,7 +72,7 @@ function target_function_t_fisher(model::SdErgmPml, obs_t, N,  f_t)
 
     changeStat, response, weights = ErgmRcall.decomposeMPLEmatrix(obs_t)
     
-    return  StaticNets.fisher_info_pseudo_loglikelihood_strauss_ikeda(f_t, changeStat, weights)
+    return  StaticNets.fisher_info_obj_fun(f_t, changeStat, weights)
 
 end
 

@@ -61,7 +61,7 @@ function sample_ergm(model::NetModelDirBin0Rec0, N, θ_0, η_0, nSample)
 end
 
 
-function statsFromMat(Model::NetModelDirBin0Rec0, A ::Matrix{<:Real})
+function stats_from_mat(Model::NetModelDirBin0Rec0, A ::Matrix{<:Real})
     L = sum(A)
     R = sum(A'.*A)/2
     N=size(A)[1]
@@ -111,8 +111,8 @@ function estimate(model::NetModelDirBin0Rec0, L, R, N)
 end
 
 
-function estimate(Model::NetModelDirBin0Rec0, A)
-    L, R, N = statsFromMat(Model, A) 
+function estimate(Model::NetModelDirBin0Rec0, A::T where T <: Matrix)
+    L, R, N = stats_from_mat(Model, A) 
     return estimate(Model, L, R, N)
 end
 
@@ -125,7 +125,12 @@ end
 
 
 function logLikelihood(Model::NetModelDirBin0Rec0, A::Matrix, par)
-    L, R, N = statsFromMat(Model, A)
+    L, R, N = stats_from_mat(Model, A)
     return logLikelihood(Model, L, R, N, par)
 end
+
+estimate_sequence(model::NetModelDirBin0Rec0, obsT::Array{Array{T, 1}} where T <: Real) = reduce(hcat, [estimate(model, obsT[t] ) for t in 1:size(obsT)[3]])
+
+
+estimate_sequence(model::NetModelDirBin0Rec0, AT::Array{T, 3} where T <: Real) = reduce(hcat, [estimate(model, AT[:,:,t]) for t in 1:size(AT)[3]])
 

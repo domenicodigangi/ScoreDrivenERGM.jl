@@ -39,10 +39,11 @@ obsT, vEstSdResPar, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0 
 ProfileView.@profview obsT, vEstSdResPar, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0 = DynNets.estimate_and_filter(model, N, obsT)
         
 
+vEstSdUnPar = unrestrict_all_par(model, indTvPar, vEstSdResPar)
 
-ProfileView.@profview @time DynNets.conf_bands_given_SD_estimates(model, N obsT, vEstSdResPar, ftot_0, quantilesVals;  parUncMethod = "WHITE-MLE")
+ProfileView.@profview @time DynNets.conf_bands_given_SD_estimates(model, N obsT, vEstSdUnPar, ftot_0, quantilesVals;  parUncMethod = "WHITE-MLE")
 
 
-@code_warntype DynNets.conf_bands_given_SD_estimates(res.model, N, obsT,vEstSdResPar, ftot_0, quantilesVals;  parUncMethod = "WHITE-MLE")
+@code_warntype DynNets.conf_bands_given_SD_estimates(res.model, N, obsT,vEstSdUnPar , ftot_0, quantilesVals;  parUncMethod = "WHITE-MLE")
 
 @code_warntype DynNets.score_driven_filter(model, N, obsT,  vEstSdResPar, indTvPar;  ftot_0 = ftot_0)

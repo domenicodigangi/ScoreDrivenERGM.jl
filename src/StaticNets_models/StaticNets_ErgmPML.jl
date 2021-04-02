@@ -44,7 +44,6 @@ function pseudo_loglikelihood_strauss_ikeda(par, changeStat, response, weights)
 end
 
 
-
 function grad_pseudo_loglikelihood_strauss_ikeda(par, changeStat, response, weights)
 
     H_vec = dropdims(sum(par.*changeStat', dims=1), dims=1)      
@@ -74,6 +73,14 @@ function fisher_info_pseudo_loglikelihood_strauss_ikeda(par, changeStat,  weight
 end
 
 
-estimate(model::NetModeErgmPml, A::Matrix) = ErgmRcall.get_mple(model.ergmTermsString, A)
+obj_fun(par, changeStat, response, weights) =  pseudo_loglikelihood_strauss_ikeda(par, changeStat, response, weights)
 
+grad_obj_fun(par, changeStat, response, weights) = grad_pseudo_loglikelihood_strauss_ikeda(par, changeStat, response, weights)
 
+hessian_obj_fun(par, changeStat, weights) = hessian_pseudo_loglikelihood_strauss_ikeda(par, changeStat, weights)
+
+fisher_info_obj_fun(par, changeStat,  weights) = fisher_info_pseudo_loglikelihood_strauss_ikeda(par, changeStat,  weights)
+
+estimate_sequence(model::NetModeErgmPml, obsT::Array{Array{Float64, 2}}) = reduce(hcat, [ErgmRcall.get_one_mple(obst, model.ergmTermsString) for obst in obsT])
+
+estimate_sequence(model::NetModeErgmPml, obsT::Array{T, 3} where T <: Real) = reduce(hcat, [ErgmRcall.get_one_mple(obsT[:,:,t], model.ergmTermsString) for t in 1:size(obsT)[3]])

@@ -36,7 +36,7 @@ Rdgp = n_pox_pairs(N)/4-100
 nSample = 100
 diadProb = StaticNets.diadProbFromPars(model, [θ_0, η_0])
 A_vec = [StaticNets.samplSingMatCan(model, diadProb, N) for i=1:nSample]
-statsVec = reduce(hcat,[StaticNets.statsFromMat(model, A) for A in A_vec])
+statsVec = reduce(hcat,[StaticNets.stats_from_mat(model, A) for A in A_vec])
 
 
 jnum = 10
