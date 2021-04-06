@@ -9,16 +9,31 @@ Base.string(x::GasNetModel) = DynNets.name(x)
 export string
 
 
-identify(model::GasNetModel,UnPar::Array{<:Real,1}, idType ) =
-    StaticNets.identify(model.staticModel, UnPar; idType = idType)
+identify(model::GasNetModel,UnPar::Array{<:Real,1}, idType ) = StaticNets.identify(model.staticModel, UnPar; idType = idType)
+
 
 number_ergm_par(model::T where T <:GasNetModel) = length(model.indTvPar)
 
+
 type_of_obs(model::GasNetModel) =  StaticNets.type_of_obs(model.staticModel)
+
 
 stats_from_mat(model::GasNetModel, A ::Matrix{<:Real}) = StaticNets.stats_from_mat(model.staticModel, A ::Matrix{<:Real}) 
 
-# options and conversions of parameters for optimization
+
+function seq_of_obs_from_seq_of_mats(model::T where T <:GasNetModel, AT_in)
+
+    AT = convert_to_array_of_mats(AT_in)
+    T = length(AT)
+    obsT = Array{type_of_obs(model), 1}(undef, T)
+    for t in 1:T
+        obsT[t] = DynNets.stats_from_mat(model, AT[t]) 
+    end
+    return obsT 
+end
+
+
+#region options and conversions of parameters for optimization
 function setOptionsOptim(model::T where T<: GasNetModel; show_trace = false)
     "Set the options for the optimization required in the estimation of the model.
     For the optimization use the Optim package."
@@ -33,6 +48,7 @@ function setOptionsOptim(model::T where T<: GasNetModel; show_trace = false)
                      f_abstol = tol,
                      iterations = maxIter,
                      show_trace = show_trace ,#false,#
+                     store_trace = true ,#false,#
                      show_every=5)
 
     algo = NewtonTrustRegion(; initial_delta = 0.1,
@@ -95,7 +111,7 @@ function divide_SD_par_from_const(model::T where T <:GasNetModel, indTvPar,  vec
     lastConstInd = 0
     #extract the vector of gas parameters, addimng w from targeting when needed
     for i=1:nErgmPar
-        if indTvPar[i] 
+        if indTvPar[i]
             vecSDParAll[lastIndSD+1] = vecAllPar[lastInputInd + 1]
             vecSDParAll[lastIndSD+2] = vecAllPar[lastInputInd + 2]
             vecSDParAll[lastIndSD+3] = vecAllPar[lastInputInd + 3]
@@ -122,9 +138,10 @@ function merge_SD_par_and_const(model::T where T <:GasNetModel, indTvPar,  vecSD
 
     vecAllPar = zeros(Real, nAllPar)
 
+    lastInputInd = 0
+    lastConstInd = 0
     lastIndAll = 0
     lastIndSD = 0
-    lastIndConst = 0
     for i=1:nErgmPar
         if indTvPar[i] 
             
@@ -135,8 +152,9 @@ function merge_SD_par_and_const(model::T where T <:GasNetModel, indTvPar,  vecSD
             lastIndAll +=3
             lastIndSD +=3
         else
-            vecAllPar[lastIndAll+1] = vConstPar[lastIndConst + 1]
+            vecAllPar[lastIndAll+1] = vConstPar[lastConstInd + 1]
                         
+            lastIndAll +=1
             lastInputInd +=1
             lastConstInd +=1
         end
@@ -164,7 +182,7 @@ end
 
 
 """
-Restrict the  Score Driven parameters  to appropriate link functions to ensure that they remain in the region where the SD dynamics is well specified (basically 0<=B<1  A>=0)
+    inverse of restrict_SD_static_par
 """
 function unrestrict_SD_static_par(model::T where T <:GasNetModel, vecReSDPar::Array{<:Real,1})
 
@@ -181,7 +199,11 @@ function unrestrict_SD_static_par(model::T where T <:GasNetModel, vecReSDPar::Ar
 end
 
 
+"""
+    separate SD parameters from constant ones, unrestrict SD and merge them back 
+"""
 function unrestrict_all_par(model::T where T <:GasNetModel, indTvPar, vAllPar)
+
     vSDRe, vConst = divide_SD_par_from_const(model, indTvPar, vAllPar)
 
     vSDUn = unrestrict_SD_static_par(model, vSDRe)
@@ -189,7 +211,9 @@ function unrestrict_all_par(model::T where T <:GasNetModel, indTvPar, vAllPar)
     merge_SD_par_and_const(model, indTvPar, vSDUn, vConst)
 end
 
-
+"""
+    separate SD parameters from constant ones, restrict SD and merge them back 
+"""
 function restrict_all_par(model::T where T <:GasNetModel, indTvPar, vAllPar)
    
     vSDUn, vConst = divide_SD_par_from_const(model, indTvPar, vAllPar)
@@ -211,8 +235,8 @@ function starting_point_optim(model::T where T <:GasNetModel, indTvPar, UM; indT
     
     # #set the starting points for the optimizations
     B0_Re  = 0.98; B0_Un = log(B0_Re ./ (1 .- B0_Re ))
-    ARe_min =0.00000000001
-    A0_Re  = 0.000005 ; A0_Un = log(A0_Re  .-  ARe_min)
+    ARe_min =0.0000000001
+    A0_Re  = 0.01 ; A0_Un = log(A0_Re  .-  ARe_min)
     
     # starting values for the vector of parameters that have to be optimized
     vParOptim_0 = zeros(nErgmPar + nTvPar*2 - NTargPar)
@@ -231,6 +255,7 @@ function starting_point_optim(model::T where T <:GasNetModel, indTvPar, UM; indT
             last+=1
         end
     end
+    @debug "[starting_point_optim][UM = $UM, vParOptim_0 = $vParOptim_0, ARe_min = $ARe_min]"
     return vParOptim_0, ARe_min
 end
 
@@ -239,16 +264,7 @@ convert_to_array_of_mats(AT::Array{Array{<:Any, 2}, 1}) = AT
 convert_to_array_of_mats(AT::Array{<:Any, 1}) = [m for m in AT]
 convert_to_array_of_mats(AT::Array{<:Any, 3}) = [AT[:,:,t] for t in 1:size(AT)[3]]
 
-function seq_of_obs_from_seq_of_mats(model::T where T <:GasNetModel, AT_in)
-
-    AT = convert_to_array_of_mats(AT_in)
-    T = length(AT)
-    obsT = Array{type_of_obs(model), 1}(undef, T)
-    for t in 1:T
-        obsT[t] = DynNets.stats_from_mat(model, AT[t]) 
-    end
-    return obsT 
-end
+#endregion
 
 
 target_function_t(model::GasNetModel, obs_t, N, f_t) = StaticNets.obj_fun(model.staticModel, obs_t, N, f_t)
@@ -300,7 +316,7 @@ function updatedGasPar( model::T where T<: GasNetModel, obs_t, N, ftot_t::Array{
         hess_tot_t = target_function_t_hess(model, obs_t, N, ftot_t)
         I_updt = -hess_tot_t
         I_t = I_updt
-        s_t = grad_tot_t[indTvPar]./I_t[I(size(I_t)[1])]
+        s_t = (grad_tot_t./I_t[I(size(I_t)[1])])[indTvPar]
     elseif model.scoreScalingType =="MAX_LINKS"
         hess_tot_t = target_function_t_hess(model, obs_t, N, ftot_t)
         I_t = ones(size(grad_tot_t)).*(N^2-N)
@@ -309,19 +325,18 @@ function updatedGasPar( model::T where T<: GasNetModel, obs_t, N, ftot_t::Array{
         hess_tot_t = target_function_t_hess(model, obs_t, N, ftot_t)
         I_updt = -hess_tot_t
         I_t = I_updt
-        s_t = I_t\grad_tot_t[indTvPar]
+        s_t = (I_t\grad_tot_t)[indTvPar]
 
     elseif model.scoreScalingType =="FISH_D"
         fish_tot_t = target_function_t_fisher(model, obs_t, N, ftot_t)
         I_updt = fish_tot_t
         I_t = I_updt  
-        s_t = clamp.(grad_tot_t[indTvPar]./sqrt.((I_t[I(size(I_t)[1])])), -extremeScaledScore, extremeScaledScore) 
+        s_t = clamp.( (grad_tot_t./sqrt.((I_t[I(size(I_t)[1])] )))[indTvPar], -extremeScaledScore, extremeScaledScore) 
 
     end
 
 
     f_t = ftot_t[indTvPar] #Time varying ergm parameters
-
     f_tp1 = Wgas .+ Bgas.* f_t .+ Agas.*s_t
 
     ftot_tp1 = copy(ftot_t)
@@ -567,73 +582,37 @@ Estimate the GAS and static parameters
 function estimate(model::T where T<: GasNetModel, N, obsT; indTvPar::BitArray{1}=model.indTvPar, indTargPar::BitArray{1} = falses(length(model.indTvPar)), UM:: Array{<:Real,1} = zeros(2), ftot_0 :: Array{<:Real,1} = zeros(2), vParOptim_0 =zeros(2), shuffleObsInds = zeros(Int, 2), show_trace = false )
 
     T = length(obsT);
-    nErgmPar = 2 #
+    nErgmPar = number_ergm_par(model)
     NTvPar = sum(indTvPar)
     NTargPar = sum(indTargPar)
-    Logging.@debug( "Estimating N = $N , T=$T")
+    Logging.@debug( "[estimate][Estimating N = $N , T=$T]")
 
-    # UM is a vector with target values for dynamical ones. Parameters
+    # UM is a vector with target values for dynamical parameters
     # if not given as input use the static estimates
-    # single static estimate
-
-    if prod(UM.== 0 )&(!prod(.!indTvPar))&(any(indTargPar))
+    if !all( UM.== 0 )
+        if any(indTargPar)
+            error("targeting is not considered in the definition of the objective function. Before using it we need to update the latter")
+        end
+        staticPars = UM 
+    else
         staticPars = static_estimate(model, obsT)
-        UM = staticPars
     end
 
     # ftot_0 is a vector with initial values (to be used in the SD iteration)
-    # if not given as input estimate on first 3 observations
+    # if not given as input estimate on first observations
     if prod(ftot_0.== 0 )&(!prod(.!indTvPar))
         ftot_0 =  static_estimate(model, obsT[1:5])
     end
-    #UM = ftot_0
 
     optims_opt, algo = setOptionsOptim(model; show_trace = show_trace )
 
-
-    vParOptim_0_tmp, ARe_min = starting_point_optim(model, indTvPar, UM; indTargPar = indTargPar)
+    vParOptim_0_tmp, ARe_min = starting_point_optim(model, indTvPar, staticPars; indTargPar = indTargPar)
 
     if sum(vParOptim_0) == 0
         vParOptim_0 = vParOptim_0_tmp
     end
 
   
-    function divideCompleteRestrictPar(vecUnPar::Array{<:Real,1})
-
-        # vecUnPar is a vector of unrestricted parameters that need to be optimized.
-        # add some elements to take into accounter targeting, divide into GAs and
-        # costant parameters, restrict the parameters to appropriate Utilitiesains
-        vecReGasParAll = zeros(Real,3NTvPar )
-        vecConstPar = zeros(Real,nErgmPar-NTvPar)
-        # add w determined by B values to targeted parameters
-        lastInputInd = 0
-        lastGasInd = 0
-        lastConstInd = 0
-        #extract the vector of gas parameters, addimng w from targeting when needed
-        for i=1:nErgmPar
-            if indTvPar[i]
-                if indTargPar[i]
-                    B =  1 ./ (1 .+ exp.( .- vecUnPar[lastInputInd+1]))
-                    vecReGasParAll[lastGasInd+1] = UM[i]*(1 .- B) # w
-                    vecReGasParAll[lastGasInd+2] = B #B
-                    vecReGasParAll[lastGasInd+3] =  ARe_min   .+  exp(vecUnPar[lastInputInd + 2]) # A
-                    lastInputInd +=2
-                    lastGasInd +=3
-                else
-                    vecReGasParAll[lastGasInd+1] = vecUnPar[lastInputInd  + 1]
-                    vecReGasParAll[lastGasInd+2] =  1 ./ (1 .+ exp.( .- vecUnPar[lastInputInd + 2]))
-                    vecReGasParAll[lastGasInd+3] = ARe_min   .+  exp(vecUnPar[lastInputInd + 3])
-                    lastInputInd +=3
-                    lastGasInd +=3
-                end
-            else
-                vecConstPar[lastConstInd+1] = vecUnPar[lastInputInd  + 1]
-                lastInputInd +=1
-                lastConstInd +=1
-            end
-        end
-    return vecReGasParAll,vecConstPar
-    end
 
     #define the objective function for the optimization
     shuffleObsFlag = !(sum(shuffleObsInds)  .== 0)
@@ -645,11 +624,11 @@ function estimate(model::T where T<: GasNetModel, N, obsT; indTvPar::BitArray{1}
 
         function objfunGasShuffle(vecUnPar::Array{<:Real,1})# a function of the groups parameters
 
-            vecReGasParAll,vecConstPar = divideCompleteRestrictPar(vecUnPar)
+            vecReSDPar,vecConstPar = divideCompleteRestrictPar(vecUnPar)
 
             oneInADterms  = (StaticNets.maxLargeVal + vecUnPar[1])/StaticNets.maxLargeVal
 
-            foo, logLikeVecT, foo1 = score_driven_filter( model, N, obsT, vecReGasParAll, indTvPar;  vConstPar =  vecConstPar, ftot_0 = ftot_0 .* oneInADterms)
+            foo, logLikeVecT, foo1 = score_driven_filter( model, N, obsT, vecReSDPar, indTvPar;  vConstPar =  vecConstPar, ftot_0 = ftot_0 .* oneInADterms)
 
                 return - sum(logLikeVecT[shuffleObsInds])
         end
@@ -658,11 +637,15 @@ function estimate(model::T where T<: GasNetModel, N, obsT; indTvPar::BitArray{1}
     else
         function objfunGas(vecUnPar::Array{<:Real,1})# a function of the groups parameters
 
-            vecReGasParAll,vecConstPar = divideCompleteRestrictPar(vecUnPar)
+            # vecReSDPar,vecConstPar = divideCompleteRestrictPar(vecUnPar)
+
+            vecUnSDPar, vecConstPar = divide_SD_par_from_const(model, indTvPar, vecUnPar)
 
             oneInADterms  = (StaticNets.maxLargeVal + vecUnPar[1])/StaticNets.maxLargeVal
 
-            foo, logLikeVecT, foo1 = score_driven_filter( model, N, obsT, vecReGasParAll, indTvPar;  vConstPar =  vecConstPar, ftot_0 = ftot_0 .* oneInADterms)
+            vecReSDPar = restrict_SD_static_par(model, vecUnSDPar)
+
+            foo, logLikeVecT, foo1 = score_driven_filter( model, N, obsT, vecReSDPar, indTvPar;  vConstPar =  vecConstPar, ftot_0 = ftot_0 .* oneInADterms)
 
             return - sum(logLikeVecT)
         end
@@ -691,14 +674,15 @@ function estimate(model::T where T<: GasNetModel, N, obsT; indTvPar::BitArray{1}
 
     #Run the optimization
    
-    Logging.@debug("Starting point for Optim $vParOptim_0")
-    optim_out2  = optimize(ADobjfunGas,vParOptim_0 ,algo,optims_opt)
+    Logging.@debug("[estimate][Starting point for Optim $vParOptim_0]")
+    Logging.@debug("[estimate][Starting point for Optim $(restrict_all_par(model, indTvPar, vParOptim_0))]")
+    optim_out2  = optimize(ADobjfunGas, vParOptim_0, algo, optims_opt)
     outParAllUn = Optim.minimizer(optim_out2)
-    vecAllParGasHat, vecAllParConstHat = divideCompleteRestrictPar(outParAllUn)
+    vecAllParGasHat, vecAllParConstHat = divide_SD_par_from_const(model, indTvPar, restrict_all_par(model, indTvPar, outParAllUn))
 
     Logging.@debug(optim_out2)
 
-    Logging.@debug("Final paramters SD: $vecAllParGasHat , constant: $vecAllParConstHat ")
+    Logging.@debug("[estimate][Final paramters SD: $vecAllParGasHat , constant: $vecAllParConstHat ]")
 
 
     function reshape_results(vecAllParGasHat)
@@ -729,14 +713,14 @@ end
 # using FiniteDiff
 # Base.eps(Real) = eps(Float64)
 
-function A0_B0_est_for_white_cov_mat_obj_SD_filter_time_seq(model::GasNetModel, N, obsT, vEstSdResPar, indTvPar, ftot_0)
+function A0_B0_est_for_white_cov_mat_obj_SD_filter_time_seq(model::GasNetModel, N, obsT, vEstSdResParAll, indTvPar, ftot_0)
 
     T = length(obsT)
-    nPar = length(vEstSdResPar)
+    nPar = length(vEstSdResParAll)
     gradT = zeros(nPar, T)
     hessT = zeros(nPar, nPar, T)
 
-    vecUnParAll = unrestrict_all_par(model, indTvPar, vEstSdResPar)    
+    vecUnParAll = unrestrict_all_par(model, indTvPar, vEstSdResParAll)    
 
     function obj_fun_t(xUn, t)
 
@@ -769,14 +753,14 @@ function A0_B0_est_for_white_cov_mat_obj_SD_filter_time_seq(model::GasNetModel, 
 end
 
 
-function white_estimate_cov_mat_static_sd_par(model::GasNetModel,  N,obsT, indTvPar, ftot_0, vEstSdResPar; returnAllMats=false, enforcePosDef = true)
+function white_estimate_cov_mat_static_sd_par(model::GasNetModel,  N,obsT, indTvPar, ftot_0, vEstSdResParAll; returnAllMats=false, enforcePosDef = true)
 
     T = length(obsT)
     nErgmPar = number_ergm_par(model)
     errorFlag = false
 
     
-    OPGradSum, HessSum = A0_B0_est_for_white_cov_mat_obj_SD_filter_time_seq(model, N, obsT, vEstSdResPar, indTvPar, ftot_0)
+    OPGradSum, HessSum = A0_B0_est_for_white_cov_mat_obj_SD_filter_time_seq(model, N, obsT, vEstSdResParAll, indTvPar, ftot_0)
 
     parCovHat = pinv(HessSum) * OPGradSum * pinv(HessSum)
     
@@ -1190,23 +1174,29 @@ function estimate_and_filter(model::GasNetModel, N, obsT; indTvPar = model.indTv
     estSdResPar, conv_flag, UM_mple, ftot_0 = estimate(model, N, obsT; indTvPar=indTvPar, indTargPar=falses(2), show_trace = show_trace)
 
 
-    vEstSdResPar = array2VecGasPar(model, estSdResPar, indTvPar)
+    vEstSdResParAll = array2VecGasPar(model, estSdResPar, indTvPar)
 
-    fVecT_filt , target_fun_val_T, sVecT_filt = score_driven_filter(model, N, obsT,  vEstSdResPar, indTvPar;ftot_0 = ftot_0)
+    vEstSdResPar, vConstPar = divide_SD_par_from_const(model, indTvPar,vEstSdResParAll)
 
-    return obsT, vEstSdResPar, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0
+    fVecT_filt , target_fun_val_T, sVecT_filt = score_driven_filter(model, N, obsT,  vEstSdResPar, indTvPar;ftot_0 = ftot_0, vConstPar=vConstPar)
+
+    return obsT, vEstSdResParAll, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0
 end
     
 
 
-function conf_bands_given_SD_estimates(model::GasNetModel, N, obsT, vEstSdUnPar, ftot_0, quantilesVals::Vector{Vector{Float64}}; indTvPar = model.indTvPar, parDgpT=zeros(2,2), plotFlag=false, parUncMethod = "WHITE-MLE", dropOutliers = false, offset = 1,  nSample = 500 , mvSDUnParEstCov = Symmetric(zeros(3,3)), sampleStaticUnPar = zeros(3,3), winsorProp=0)
+function conf_bands_given_SD_estimates(model::GasNetModel, N, obsT, vEstSdUnParAll, ftot_0, quantilesVals::Vector{Vector{Float64}}; indTvPar = model.indTvPar, parDgpT=zeros(2,2), plotFlag=false, parUncMethod = "WHITE-MLE", dropOutliers = false, offset = 1,  nSample = 500 , mvSDUnParEstCov = Symmetric(zeros(3,3)), sampleStaticUnPar = zeros(3,3), winsorProp=0)
     
     T = length(obsT)
     nStaticPar = length(indTvPar) + 2*sum(indTvPar)
     nErgmPar = number_ergm_par(model)
-    vEstSdResPar = restrict_all_par(model, indTvPar, vEstSdUnPar)
 
-    fVecT_filt , target_fun_val_T, sVecT_filt = score_driven_filter(model, N, obsT,  vEstSdResPar, indTvPar; ftot_0 = ftot_0)
+    vEstSdResParAll = restrict_all_par(model, indTvPar, vEstSdUnParAll)
+    vEstSdResPar, vConstPar = divide_SD_par_from_const(model, indTvPar,vEstSdUnParAll)
+
+
+
+    fVecT_filt , target_fun_val_T, sVecT_filt = score_driven_filter(model, N, obsT,  vEstSdResPar, indTvPar; ftot_0 = ftot_0, vConstPar=vConstPar)
 
     isDistribFilteredSDAvail = false
     # are we providing a distribution of static parameters ?
@@ -1228,7 +1218,7 @@ function conf_bands_given_SD_estimates(model::GasNetModel, N, obsT, vEstSdUnPar,
 
         elseif parUncMethod[1:2] == "PB"
             # Parametric Bootstrap
-            distribFilteredSD, filtCovHatSample, _,  sampleStaticUnPar = par_bootstrap_distrib_filtered_par(model, N, obsT, indTvPar, ftot_0, vEstSdResPar)
+            distribFilteredSD, filtCovHatSample, _,  sampleStaticUnPar = par_bootstrap_distrib_filtered_par(model, N, obsT, indTvPar, ftot_0, vEstSdResParAll)
             mean(errFlagVec) > 0.2 ? errFlagEstCov=true : errFlagEstCov = false
 
             if contains(parUncMethod, "SAMPLE")
@@ -1244,7 +1234,7 @@ function conf_bands_given_SD_estimates(model::GasNetModel, N, obsT, vEstSdUnPar,
         elseif contains(parUncMethod, "WHITE-MLE")
             # Huber- White robust estimator
             try
-                mvSDUnParEstCov, errFlagEstCov = white_estimate_cov_mat_static_sd_par(model, N, obsT, indTvPar, ftot_0, vEstSdResPar)
+                mvSDUnParEstCov, errFlagEstCov = white_estimate_cov_mat_static_sd_par(model, N, obsT, indTvPar, ftot_0, vEstSdResParAll)
                     sampleMvNormal = true
             catch  
                 Logging.@error("Error in computing white estimator")
@@ -1253,7 +1243,7 @@ function conf_bands_given_SD_estimates(model::GasNetModel, N, obsT, vEstSdUnPar,
        
         elseif parUncMethod == "HESS"
             # Hessian of the objective function
-            OPGradSum, HessSum = A0_B0_est_for_white_cov_mat_obj_SD_filter_time_seq(model, N, obsT, vEstSdResPar, indTvPar, ftot_0)
+            OPGradSum, HessSum = A0_B0_est_for_white_cov_mat_obj_SD_filter_time_seq(model, N, obsT, vEstSdResParAll, indTvPar, ftot_0)
 
             errFlagEstCov = false
             sampleMvNormal = true
@@ -1331,13 +1321,14 @@ function estimate_filter_and_conf_bands(model::GasNetModel, A_T, quantilesVals::
 
 
 
-    obsT, vEstSdResPar, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0 = estimate_and_filter(model, N, obsT; indTvPar = indTvPar, show_trace = show_trace )
-    
-    vEstSdUnPar = unrestrict_all_par(model, indTvPar, vEstSdResPar)
+    obsT, vEstSdResParAll, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0 = estimate_and_filter(model, N, obsT; indTvPar = indTvPar, show_trace = show_trace )
+    Logging.@debug("[estimate_filter_and_conf_bands][vEstSdResParAll = $vEstSdResParAll] ")
+
+    vEstSdUnPar = unrestrict_all_par(model, indTvPar, vEstSdResParAll)
 
     fVecT_filt, confBandsFiltPar, confBandsPar, errFlag, mvSDUnParEstCov, distribFilteredSD = conf_bands_given_SD_estimates(model, N, obsT, vEstSdUnPar, ftot_0, quantilesVals; indTvPar = indTvPar, parDgpT=parDgpT, plotFlag=plotFlag, parUncMethod = parUncMethod)
 
-    return obsT, vEstSdResPar, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0, confBandsFiltPar, confBandsPar, errFlag
+    return obsT, vEstSdResParAll, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0, confBandsFiltPar, confBandsPar, errFlag
 
 end
 
