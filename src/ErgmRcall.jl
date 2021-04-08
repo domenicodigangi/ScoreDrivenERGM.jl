@@ -103,55 +103,33 @@ function sampleErgmRcall(parDgpT,N,Nsample,formula_ergm_str)
 end
 export sampleErgmRcall
 
-function estimateErgmRcall(sampledMat_T_R , formula_ergm_str)
-    """
-    Function that estimates a sequence of ergm defined by formula_ergm_str (according to
-    the notation of R package ergm)
-    in order to work it needs RCall.jl insatalled and the packages listed at the
-    beginning of the module installed in R
-    """
 
+"""
+Function that estimates a sequence of ergm defined by formula_ergm_str (according to the notation of R package ergm)
+"""
+function get_one_mle(A::Matrix{T} where T<:Integer, ergmTermsString::String)
+    @debug "[estimate_mle_RCall][begin]"
+    @rput A
+    reval("formula_ergm = net ~ "*ergmTermsString)
+    try
+        R"
+            net <- as.network.matrix(A)
 
-    clean_start_RCall()
+            tmp <- ergm(formula_ergm)#,estimate = 'MPLE')#)#
 
-    T = size(sampledMat_T_R )[3]
-    # For each t, sample the ERGM with parameters corresponding to the DGP at time t
-    # and run a single snapeshot estimate
-    @rput T; @rput sampledMat_T_R ;@rput N
+            estPar_R <- tmp[[1]]
+        "
+        estPar = @rget(estPar_R)
+    catch
+        @warn "[estimate_mle_RCall][mle failed. returning mple]"
+        estPar = get_one_mple(A, ergmTermsString)
+    end
 
-    reval("formula_ergm = net ~ "*formula_ergm_str)
-
-     #create an empty network, the formula defining ergm, sample the ensemble and
-     # store the sufficient statistics and change statistics in R
-
-     R"
-      estParSS_T_R =    list()
-        for(t in 1:T){
-            net <- as.network.matrix(   sampledMat_T_R[,,t,n])
-            estParSS_t_R =    list()
-            changeStats_t_R = list()
-            stats_t_R = list()
-            print(t)
-            for(n in 1:Nsample){
-                print(parDgpT[,t])
-                 net <- simulate(formula_ergm, nsim = 1, seed = sample(1:100000000,1), coef = parDgpT[,t],control = control.simulate.formula(MCMC.burnin = 100000))
-                 tmp <- ergm(formula_ergm)#,estimate = 'MPLE')#)#
-                 estParSS_t_R[[n]] <- tmp[[1]]
-                 print(c(t,n))
-
-                 print(estParSS_t_R[[n]])
-                 }
-                  estParSS_T_R[[t]] <- estParSS_t_R
-             }"
-
-
-
-    # import sampled networks in julia
-    estParSS_T = @rget(estParSS_T_R);#tmp = zeros(Nterms,T); for t=1:T tmp[:,t] = estParSS_T[t]; end ; estParSS_T = tmp
-    estParSS_T = Utilities.collapseArr3(estParSS_T)
-    return estParSS_T
+    
+    @debug "[estimate_mle_RCall][end]"
+    return estPar
 end
-export estimateErgmRcall
+export get_one_mle
 
 
 
