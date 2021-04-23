@@ -6,9 +6,7 @@ module ErgmRcall
 
 using DataFrames
 using RCall
-
-using RCall
-
+using SparseArrays
 
 
 function clean_start_RCall()
@@ -104,16 +102,33 @@ end
 export sampleErgmRcall
 
 
+function get_edge_list(A::Matrix) 
+    @debug "[get_edge_list][begin]"
+
+    if size(A)[2] == 2 
+        return A
+    end
+
+    size(A)[1] == size(A)[2] ? () : error("Adjacency matrix must be squared")
+    spA = sparse(A)
+    spA_lists = findnz(spA)
+    @debug "[get_edge_list][end]"
+    return hcat(spA_lists[1], spA_lists[2])
+end
+
+
 """
 Function that estimates a sequence of ergm defined by formula_ergm_str (according to the notation of R package ergm)
 """
 function get_one_mle(A::Matrix{T} where T<:Integer, ergmTermsString::String)
     @debug "[estimate_mle_RCall][begin]"
-    @rput A
+    
+    edge_list = get_edge_list(A)   
+    @rput edge_list
     reval("formula_ergm = net ~ "*ergmTermsString)
     try
         R"
-            net <- as.network.matrix(A)
+            net <- as.network.matrix(edge_list)
 
             tmp <- ergm(formula_ergm)#,estimate = 'MPLE')#)#
 
@@ -136,11 +151,13 @@ export get_one_mle
 
 function get_change_stats(A::Matrix{T} where T<:Integer, ergmTermsString::String)
     # given a matrix returns the change statistics wrt to a given formula
-    @rput A
+    edge_list = get_edge_list(A)   
+    @rput edge_list
+
     reval("formula_ergm = net ~ "* ergmTermsString)
     # store the sufficient statistics and change statistics in R
     R"""
-        net <- network(A)
+        net <- network(edge_list)
         chStat_t <- ergmMPLE(formula_ergm)
         changeStats_t_R <- cbind(chStat_t$response, chStat_t$predictor,     chStat_t$weights)
             """
@@ -149,15 +166,16 @@ function get_change_stats(A::Matrix{T} where T<:Integer, ergmTermsString::String
     return changeStats
 end
 export get_change_stats
-
+ 
 
 """ Get a single pmle from adjacency matrix""" 
 function get_one_mple(A::Matrix{T} where T<:Integer, ergmTermsString::String)
-    @rput A
+    edge_list = get_edge_list(A)   
+    @rput edge_list
     reval("formula_ergm = net ~ "* ergmTermsString)
     # store the sufficient statistics and change statistics in R
     R"""
-        net <- network(A)
+        net <- network(edge_list)
         mple_t_R <- ergmMPLE(formula_ergm, output="fit")$coef
         # print(mple_t_R)
         """
