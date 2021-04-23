@@ -2,6 +2,7 @@ import ..StaticNets
 
 import ..StaticNets:NetModeErgmPml, NetModelDirBin0Rec0
 
+
 Base.@kwdef struct  SdErgmPml <: GasNetModel
     staticModel::NetModeErgmPml
     indTvPar :: BitArray{1} 
@@ -10,7 +11,9 @@ Base.@kwdef struct  SdErgmPml <: GasNetModel
 end
 export SdErgmPml
 
+
 SdErgmPml(staticModel::NetModeErgmPml) = SdErgmPml(staticModel=staticModel, indTvPar = trues(staticModel.nErgmPar))
+
 
 SdErgmPml(ergmTermsString::String, isDirected::Bool) = SdErgmPml(NetModeErgmPml(ergmTermsString, isDirected))
 
@@ -28,9 +31,6 @@ function name(x::SdErgmPml)
         return  "SdErgmPML($(x.indTvPar), scal = $(x.scoreScalingType)$optString)"
     end
 end
-
-
-
 
 
 stats_from_mat(model::SdErgmPml, A ::Matrix{<:Real}) = StaticNets.change_stats(model.staticModel, A)
@@ -67,6 +67,7 @@ function target_function_t_hess(model::SdErgmPml, obs_t, N, f_t)
     return StaticNets.hessian_obj_fun(f_t, changeStat, weights)
 
 end
+
 
 function target_function_t_fisher(model::SdErgmPml, obs_t, N,  f_t) 
 
