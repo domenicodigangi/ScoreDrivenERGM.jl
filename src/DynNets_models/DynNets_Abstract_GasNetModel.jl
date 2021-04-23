@@ -1008,7 +1008,7 @@ function conf_bands_coverage(parDgpTIn, confBandsIn; offset=0 )
 end
 
 
-function plot_filtered(model::GasNetModel, N, fVecT_filtIn; lineType = "-", lineColor = "b", parDgpTIn=zeros(2,2), offset = 0, fig = nothing, ax=nothing, gridFlag=true)
+function plot_filtered(model::GasNetModel, N, fVecT_filtIn; lineType = "-", lineColor = "b", parDgpTIn=zeros(2,2), offset = 0, fig = nothing, ax=nothing, gridFlag=true, xval=nothing)
 
     parDgpT = parDgpTIn[:, 1:end-offset]
     fVecT_filt = fVecT_filtIn[:, 1+offset:end, :, :]
@@ -1020,11 +1020,11 @@ function plot_filtered(model::GasNetModel, N, fVecT_filtIn; lineType = "-", line
     end
 
     if parDgpTIn != zeros(2,2)
-        plot_filtered(model, N, parDgpTIn; lineType="-", lineColor="k", fig=fig, ax=ax, gridFlag=false)
+        plot_filtered(model, N, parDgpTIn; lineType="-", lineColor="k", fig=fig, ax=ax, gridFlag=false, xval=xval)
     end
     
     for p in 1:number_ergm_par(model)
-        x = 1:T
+        isnothing(xval) ? x = collect(1:T) : x = xval
         bottom = minimum(fVecT_filt[p,:])
         top = maximum(fVecT_filt[p,:])
        
@@ -1044,7 +1044,7 @@ function plot_filtered(model::GasNetModel, N, fVecT_filtIn; lineType = "-", line
 end
 
 
-function plot_filtered_and_conf_bands(model::GasNetModel, N, fVecT_filtIn, confBands1In; lineType = "-", confBands2In =zeros(2,2,2,2), parDgpTIn=zeros(2,2), nameConfBand1="1", nameConfBand2="2", offset = 0, indBand = 1)
+function plot_filtered_and_conf_bands(model::GasNetModel, N, fVecT_filtIn, confBands1In; lineType = "-", confBands2In =zeros(2,2,2,2), parDgpTIn=zeros(2,2), nameConfBand1="1", nameConfBand2="2", offset = 0, indBand = 1, xval=nothing)
 
     parDgpT = parDgpTIn[:, 1:end-offset]
     fVecT_filt = fVecT_filtIn[:, 1+offset:end, :, :]
@@ -1055,10 +1055,10 @@ function plot_filtered_and_conf_bands(model::GasNetModel, N, fVecT_filtIn, confB
 
     nBands = size(confBands1)[3]
 
-    fig, ax = plot_filtered(model::GasNetModel, N, fVecT_filtIn; lineType = lineType, parDgpTIn=parDgpTIn, offset = offset)
+    fig, ax = plot_filtered(model::GasNetModel, N, fVecT_filtIn; lineType = lineType, parDgpTIn=parDgpTIn, offset = offset, xval=xval)
 
     for p in 1:number_ergm_par(model)
-        x = 1:T
+        isnothing(xval) ? x = collect(1:T) : x = xval
            for b = indBand
             if sum(confBands1) !=0
                 ax[p].fill_between(x, confBands1[p, :, b,1], y2 =confBands1[p,:,b, 2],color =(0.9, 0.2 , 0.2, 0.1), alpha = 0.2*b/nBands  )#, color='b', alpha=.1)
@@ -1112,7 +1112,7 @@ end
     
 
 
-function conf_bands_given_SD_estimates(model::GasNetModel, N, obsT, vEstSdUnParAll, ftot_0, quantilesVals::Vector{Vector{Float64}}; indTvPar = model.indTvPar, parDgpT=zeros(2,2), plotFlag=false, parUncMethod = "WHITE-MLE", dropOutliers = false, offset = 1,  nSample = 500 , mvSDUnParEstCov = Symmetric(zeros(3,3)), sampleStaticUnPar = zeros(3,3), winsorProp=0)
+    function conf_bands_given_SD_estimates(model::GasNetModel, N, obsT, vEstSdUnParAll, ftot_0, quantilesVals::Vector{Vector{Float64}}; indTvPar = model.indTvPar, parDgpT=zeros(2,2), plotFlag=false, parUncMethod = "WHITE-MLE", dropOutliers = false, offset = 1,  nSample = 500 , mvSDUnParEstCov = Symmetric(zeros(3,3)), sampleStaticUnPar = zeros(3,3), winsorProp=0, xval=nothing)
     
     T = length(obsT)
     nStaticPar = length(indTvPar) + 2*sum(indTvPar)
@@ -1242,7 +1242,7 @@ function conf_bands_given_SD_estimates(model::GasNetModel, N, obsT, vEstSdUnParA
   
     if plotFlag
         @debug "[conf_bands_given_SD_estimates][plotting]"    
-        fig, ax = plot_filtered_and_conf_bands(model, N, fVecT_filt, confBandsFiltPar ; parDgpTIn=parDgpT, nameConfBand1= "$parUncMethod - Filter+Par", nameConfBand2= "Par", confBands2In=confBandsPar, offset=offset)
+        fig, ax = plot_filtered_and_conf_bands(model, N, fVecT_filt, confBandsFiltPar ; parDgpTIn=parDgpT, nameConfBand1= "$parUncMethod - Filter+Par", nameConfBand2= "Par", confBands2In=confBandsPar, offset=offset, xval=xval)
 
     end
 
