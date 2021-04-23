@@ -241,4 +241,14 @@ function drop_bad_un_estimates(inputEstMat)
 end
 export drop_bad_un_estimates
 
+
+ """ return an edge list with nodes indexed starting from 1 to the number of nodes present in the list """
+function edge_list_pres(list)
+    pres = sort(unique(reshape(list, :)))
+    list_pres =  [findfirst(isequal(n), pres) for n in list]
+    sorted_list_pres = sortslices(list_pres, dims=1)
+    return sorted_list_pres
+end
+export edge_list_pres
+
 end
