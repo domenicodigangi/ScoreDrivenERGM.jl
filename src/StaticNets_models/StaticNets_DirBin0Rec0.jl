@@ -129,7 +129,7 @@ function logLikelihood(Model::NetModelDirBin0Rec0, A::Matrix, par)
     return logLikelihood(Model, L, R, N, par)
 end
 
-estimate_sequence(model::NetModelDirBin0Rec0, obsT::Array{Array{T, 1}} where T <: Real) = reduce(hcat, [estimate(model, obsT[t] ) for t in 1:size(obsT)[3]])
+estimate_sequence(model::NetModelDirBin0Rec0, obsT::Array{Array{T, 1}} where T <: Real) = reduce(hcat, [estimate(model, obsT[t] ) for t in 1:length(obsT)])
 
 
 estimate_sequence(model::NetModelDirBin0Rec0, AT::Array{T, 3} where T <: Real) = reduce(hcat, [estimate(model, AT[:,:,t]) for t in 1:size(AT)[3]])
