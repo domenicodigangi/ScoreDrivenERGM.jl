@@ -209,7 +209,7 @@ export get_one_mple
 
 
 function decomposeMPLEmatrix(ergmMPLEmatrix)  
-    changeStat = ergmMPLEmatrix[:,2:3]
+    changeStat = ergmMPLEmatrix[:,2:end-1]
     response = ergmMPLEmatrix[:,1]
     weights = ergmMPLEmatrix[:,4]
     return changeStat, response, weights 
