@@ -3,25 +3,25 @@
 # @sk_import covariance: MinCovDet
 
 import ..Utilities
-abstract type GasNetModel end
+abstract type SdErgm end
 
-Base.string(x::GasNetModel) = DynNets.name(x) 
+Base.string(x::SdErgm) = DynNets.name(x) 
 export string
 
 
-identify(model::GasNetModel,UnPar::Array{<:Real,1}, idType ) = StaticNets.identify(model.staticModel, UnPar; idType = idType)
+identify(model::SdErgm,UnPar::Array{<:Real,1}, idType ) = StaticNets.identify(model.staticModel, UnPar; idType = idType)
 
 
-number_ergm_par(model::T where T <:GasNetModel) = model.staticModel.nErgmPar
+number_ergm_par(model::T where T <:SdErgm) = model.staticModel.nErgmPar
 
 
-type_of_obs(model::GasNetModel) =  StaticNets.type_of_obs(model.staticModel)
+type_of_obs(model::SdErgm) =  StaticNets.type_of_obs(model.staticModel)
 
 
-stats_from_mat(model::GasNetModel, A ::Matrix{<:Real}) = StaticNets.stats_from_mat(model.staticModel, A ::Matrix{<:Real}) 
+stats_from_mat(model::SdErgm, A ::Matrix{<:Real}) = StaticNets.stats_from_mat(model.staticModel, A ::Matrix{<:Real}) 
 
 
-function seq_of_obs_from_seq_of_mats(model::T where T <:GasNetModel, AT_in)
+function seq_of_obs_from_seq_of_mats(model::T where T <:SdErgm, AT_in)
 
     AT = convert_to_array_of_mats(AT_in)
     T = length(AT)
@@ -34,7 +34,7 @@ end
 
 
 #region options and conversions of parameters for optimization
-function setOptionsOptim(model::T where T<: GasNetModel; show_trace = false)
+function setOptionsOptim(model::T where T<: SdErgm; show_trace = false)
     "Set the options for the optimization required in the estimation of the model.
     For the optimization use the Optim package."
     tol = eps()*10
@@ -62,7 +62,7 @@ function setOptionsOptim(model::T where T<: GasNetModel; show_trace = false)
 end
 
 
-function array2VecGasPar(model::GasNetModel, ArrayGasPar, indTvPar :: BitArray{1})
+function array2VecGasPar(model::SdErgm, ArrayGasPar, indTvPar :: BitArray{1})
     # optimizations routines need the parameters to be optimized to be in a vector
 
         NTvPar = sum(indTvPar)
@@ -79,7 +79,7 @@ function array2VecGasPar(model::GasNetModel, ArrayGasPar, indTvPar :: BitArray{1
 end
 
 
-function vec2ArrayGasPar(model::GasNetModel, VecGasPar::Array{<:Real,1}, indTvPar :: BitArray{1})
+function vec2ArrayGasPar(model::SdErgm, VecGasPar::Array{<:Real,1}, indTvPar :: BitArray{1})
     
     Npar = length(indTvPar)
     ArrayGasPar = [zeros(Real, 1 + tv*2) for tv in indTvPar]#Array{Array{<:Real,1},1}(undef, Npar)
@@ -98,7 +98,7 @@ end
 """
 Given vecAllPar divide it into a vector of Score Driven parameters and one of costant parameters
 """
-function divide_SD_par_from_const(model::T where T <:GasNetModel, indTvPar,  vecAllPar::Array{<:Real,1})
+function divide_SD_par_from_const(model::T where T <:SdErgm, indTvPar,  vecAllPar::Array{<:Real,1})
 
     nTvPar = sum(indTvPar)
     nErgmPar = length(indTvPar)
@@ -127,7 +127,7 @@ function divide_SD_par_from_const(model::T where T <:GasNetModel, indTvPar,  vec
 end
 
 
-function merge_SD_par_and_const(model::T where T <:GasNetModel, indTvPar,  vecSDPar::Array{<:Real,1}, vConstPar)
+function merge_SD_par_and_const(model::T where T <:SdErgm, indTvPar,  vecSDPar::Array{<:Real,1}, vConstPar)
 
     nTvPar = sum(indTvPar)
     nConstPar = sum(.!indTvPar)
@@ -166,7 +166,7 @@ end
 """
 Restrict the  Score Driven parameters  to appropriate link functions to ensure that they remain in the region where the SD dynamics is well specified (basically 0<=B<1  A>=0)
 """
-function restrict_SD_static_par(model::T where T <:GasNetModel, vecUnSDPar::Array{<:Real,1})
+function restrict_SD_static_par(model::T where T <:SdErgm, vecUnSDPar::Array{<:Real,1})
 
     nSDPar = length(vecUnSDPar)
     nTvPar, rem = divrem(nSDPar,3)
@@ -184,7 +184,7 @@ end
 """
     inverse of restrict_SD_static_par
 """
-function unrestrict_SD_static_par(model::T where T <:GasNetModel, vecReSDPar::Array{<:Real,1})
+function unrestrict_SD_static_par(model::T where T <:SdErgm, vecReSDPar::Array{<:Real,1})
 
     nSDPar = length(vecReSDPar)
     nTvPar, rem = divrem(nSDPar,3)
@@ -202,7 +202,7 @@ end
 """
     separate SD parameters from constant ones, unrestrict SD and merge them back 
 """
-function unrestrict_all_par(model::T where T <:GasNetModel, indTvPar, vAllPar)
+function unrestrict_all_par(model::T where T <:SdErgm, indTvPar, vAllPar)
 
     vSDRe, vConst = divide_SD_par_from_const(model, indTvPar, vAllPar)
 
@@ -214,7 +214,7 @@ end
 """
     separate SD parameters from constant ones, restrict SD and merge them back 
 """
-function restrict_all_par(model::T where T <:GasNetModel, indTvPar, vAllPar)
+function restrict_all_par(model::T where T <:SdErgm, indTvPar, vAllPar)
    
     vSDUn, vConst = divide_SD_par_from_const(model, indTvPar, vAllPar)
 
@@ -227,7 +227,7 @@ end
 """
 Given the flag of constant parameters, a starting value for their unconditional means (their constant value, for those constant), return a starting point for the optimization
 """
-function starting_point_optim(model::T where T <:GasNetModel, indTvPar, UM; indTargPar =  falses(100))
+function starting_point_optim(model::T where T <:SdErgm, indTvPar, UM; indTargPar =  falses(100))
     
     nTvPar = sum(indTvPar)
     NTargPar = sum(indTargPar)
@@ -267,10 +267,10 @@ convert_to_array_of_mats(AT::Array{<:Any, 3}) = [AT[:,:,t] for t in 1:size(AT)[3
 #endregion
 
 
-target_function_t(model::GasNetModel, obs_t, N, f_t) = StaticNets.obj_fun(model.staticModel, obs_t, N, f_t)
+target_function_t(model::SdErgm, obs_t, N, f_t) = StaticNets.obj_fun(model.staticModel, obs_t, N, f_t)
 
 
-function target_function_t_grad(model::T where T<: GasNetModel, obs_t, N, f_t)
+function target_function_t_grad(model::T where T<: SdErgm, obs_t, N, f_t)
 
     target_fun_t(x) = target_function_t(model, obs_t, N, x)
     
@@ -280,7 +280,7 @@ function target_function_t_grad(model::T where T<: GasNetModel, obs_t, N, f_t)
 end
 
 
-function target_function_t_hess(model::T where T<: GasNetModel, obs_t, N, f_t)
+function target_function_t_hess(model::T where T<: SdErgm, obs_t, N, f_t)
 
     target_fun_t(x) = target_function_t(model, obs_t, N, x)
     
@@ -290,14 +290,14 @@ function target_function_t_hess(model::T where T<: GasNetModel, obs_t, N, f_t)
 end
 
 
-function target_function_t_fisher(model::T where T<: GasNetModel, obs_t, N, f_t)
+function target_function_t_fisher(model::T where T<: SdErgm, obs_t, N, f_t)
 
     error("need to code the fisher manually, cannot be obtained by Automatic Differentiation in the general case, only when the fisher equality holds")
     return fisher_info_t
 end
 
 
-function updatedGasPar( model::T where T<: GasNetModel, obs_t, N, ftot_t::Array{<:Real,1}, I_tm1::Array{<:Real,2}, indTvPar::BitArray{1}, Wgas::Array{<:Real,1}, Bgas::Array{<:Real,1}, Agas::Array{<:Real,1})
+function updatedGasPar( model::T where T<: SdErgm, obs_t, N, ftot_t::Array{<:Real,1}, I_tm1::Array{<:Real,2}, indTvPar::BitArray{1}, Wgas::Array{<:Real,1}, Bgas::Array{<:Real,1}, Agas::Array{<:Real,1})
     
     
     #= likelihood and gradients depend on all the parameters (ftot_t), but
@@ -355,7 +355,7 @@ Barrier function to handle single N and sequence of Ns
 get_N_t(N_seq::AbstractArray, t::Int) = N_seq[t] 
 get_N_t(N::Int, t) = N 
 
-function score_driven_filter( model::T where T<: GasNetModel, N, obsT, vResGasPar::Array{<:Real,1}, indTvPar::BitArray{1}; vConstPar ::Array{<:Real,1} = zeros(Real,2), ftot_0::Array{<:Real,1} = zeros(Real,2))
+function score_driven_filter( model::T where T<: SdErgm, N, obsT, vResGasPar::Array{<:Real,1}, indTvPar::BitArray{1}; vConstPar ::Array{<:Real,1} = zeros(Real,2), ftot_0::Array{<:Real,1} = zeros(Real,2))
 
     nErgmPar = number_ergm_par(model)
     NTvPar   = sum(indTvPar)
@@ -416,7 +416,7 @@ function score_driven_filter( model::T where T<: GasNetModel, N, obsT, vResGasPa
 end
 
 
-function score_driven_dgp( model::T where T<: GasNetModel, N, dgpNT, vResGasPar::Array{<:Real,1}, indTvPar::BitArray{1}; vConstPar ::Array{<:Real,1} = zeros(Real,2), ftot_0::Array{<:Real,1} = zeros(Real,2))
+function score_driven_dgp( model::T where T<: SdErgm, N, dgpNT, vResGasPar::Array{<:Real,1}, indTvPar::BitArray{1}; vConstPar ::Array{<:Real,1} = zeros(Real,2), ftot_0::Array{<:Real,1} = zeros(Real,2))
 
     nErgmPar = number_ergm_par(model)
     NTvPar   = sum(indTvPar)
@@ -462,9 +462,9 @@ function score_driven_dgp( model::T where T<: GasNetModel, N, dgpNT, vResGasPar:
     for t=1:T
     #    println(t)
   
-        diadProb = StaticNets.diadProbFromPars(StaticNets.NetModelDirBin0Rec0(), fVecT[:, t] )
+        diadProb = StaticNets.diadProbFromPars(StaticNets.ErgmDirBin0Rec0(), fVecT[:, t] )
 
-        A_t = StaticNets.samplSingMatCan(StaticNets.NetModelDirBin0Rec0(), diadProb, N)
+        A_t = StaticNets.samplSingMatCan(StaticNets.ErgmDirBin0Rec0(), diadProb, N)
         
         A_T[:, : , t] = A_t
         
@@ -490,13 +490,13 @@ function score_driven_dgp( model::T where T<: GasNetModel, N, dgpNT, vResGasPar:
 end
 
 
-estimate_single_snap_sequence(model::T where T<: GasNetModel, obsT, aggregate=0) = StaticNets.estimate_sequence(model.staticModel, obsT)
+estimate_single_snap_sequence(model::T where T<: SdErgm, obsT, aggregate=0) = StaticNets.estimate_sequence(model.staticModel, obsT)
 
 
 """
 Estimate the GAS and static parameters
 """
-function estimate(model::T where T<: GasNetModel, N, obsT; indTvPar::BitArray{1}=model.indTvPar, indTargPar::BitArray{1} = falses(length(model.indTvPar)), UM:: Array{<:Real,1} = zeros(2), ftot_0 :: Array{<:Real,1} = zeros(2), vParOptim_0 =zeros(2), shuffleObsInds = zeros(Int, 2), show_trace = false )
+function estimate(model::T where T<: SdErgm, N, obsT; indTvPar::BitArray{1}=model.indTvPar, indTargPar::BitArray{1} = falses(length(model.indTvPar)), UM:: Array{<:Real,1} = zeros(2), ftot_0 :: Array{<:Real,1} = zeros(2), vParOptim_0 =zeros(2), shuffleObsInds = zeros(Int, 2), show_trace = false )
     @debug "[estimate][start][indTvPar=$indTvPar, indTargPar=$indTargPar, UM=$UM, ftot_0=$ftot_0, vParOptim_0 = $vParOptim_0, shuffleObsInds=$shuffleObsInds]"
     T = length(obsT);
     nErgmPar = number_ergm_par(model)
@@ -631,7 +631,7 @@ end
 # using FiniteDiff
 # Base.eps(Real) = eps(Float64)
 
-function A0_B0_est_for_white_cov_mat_obj_SD_filter_time_seq(model::GasNetModel, N, obsT, vEstSdResParAll, indTvPar, ftot_0)
+function A0_B0_est_for_white_cov_mat_obj_SD_filter_time_seq(model::SdErgm, N, obsT, vEstSdResParAll, indTvPar, ftot_0)
 
     T = length(obsT)
     nPar = length(vEstSdResParAll)
@@ -671,7 +671,7 @@ function A0_B0_est_for_white_cov_mat_obj_SD_filter_time_seq(model::GasNetModel, 
 end
 
 
-function white_estimate_cov_mat_static_sd_par(model::GasNetModel,  N,obsT, indTvPar, ftot_0, vEstSdResParAll; returnAllMats=false, enforcePosDef = true)
+function white_estimate_cov_mat_static_sd_par(model::SdErgm,  N,obsT, indTvPar, ftot_0, vEstSdResParAll; returnAllMats=false, enforcePosDef = true)
 
     T = length(obsT)
     nErgmPar = number_ergm_par(model)
@@ -709,7 +709,7 @@ function white_estimate_cov_mat_static_sd_par(model::GasNetModel,  N,obsT, indTv
 end
 
 
-function get_B_A_mats_for_TV(model::GasNetModel, indTvPar, vEstSdResPar)
+function get_B_A_mats_for_TV(model::SdErgm, indTvPar, vEstSdResPar)
     # @debug "[get_B_A_mats_for_TV][begin]"
     nTvPar = sum(indTvPar)
     nErgmPar = number_ergm_par(model)
@@ -739,7 +739,7 @@ end
 
 
 
-function distrib_filtered_par_from_sample_static_par(model::GasNetModel, N, obsT, indTvPar, ftot_0, sampleUnParAll)
+function distrib_filtered_par_from_sample_static_par(model::SdErgm, N, obsT, indTvPar, ftot_0, sampleUnParAll)
         
     T = length(obsT)
     nErgmPar = number_ergm_par(model)
@@ -790,7 +790,7 @@ function distrib_filtered_par_from_sample_static_par(model::GasNetModel, N, obsT
 end
 
 
-function distrib_static_par_from_mv_normal(model::GasNetModel, N, obsT, indTvPar, ftot_0, vEstSdUnPar, mvSDUnParEstCov; nSample = 500)
+function distrib_static_par_from_mv_normal(model::SdErgm, N, obsT, indTvPar, ftot_0, vEstSdUnPar, mvSDUnParEstCov; nSample = 500)
         
     T = length(obsT)
     nErgmPar = number_ergm_par(model)
@@ -807,7 +807,7 @@ end
 """
 Use parametric bootstrap to sample from the distribution of static parameters of the SD filter
 """
-function par_bootstrap_distrib_filtered_par(model::GasNetModel, N, obsT, indTvPar, ftot_0, vEstSdResPar; nSample = 250, logFlag = false)
+function par_bootstrap_distrib_filtered_par(model::SdErgm, N, obsT, indTvPar, ftot_0, vEstSdResPar; nSample = 250, logFlag = false)
 
     T = length(obsT)
     nErgmPar = number_ergm_par(model)
@@ -857,7 +857,7 @@ function par_bootstrap_distrib_filtered_par(model::GasNetModel, N, obsT, indTvPa
 end
 
 
-function non_par_bootstrap_distrib_filtered_par(model::GasNetModel, N, obsT, indTvPar, ftot_0; nBootStrap = 100)
+function non_par_bootstrap_distrib_filtered_par(model::SdErgm, N, obsT, indTvPar, ftot_0; nBootStrap = 100)
 
     vEstSdUnParBootDist = SharedArray(zeros(3*sum(model.indTvPar), nBootStrap))
     T = length(obsT)
@@ -869,7 +869,7 @@ function non_par_bootstrap_distrib_filtered_par(model::GasNetModel, N, obsT, ind
 end
 
 
-function conf_bands_buccheri(model::GasNetModel, N, obsT, indTvPar, fVecT_filt, distribFilteredSD, filtCovHatSample, quantilesVals::Vector{Vector{Float64}}, dropOutliers::Bool; nSample = 250, winsorProp=0.005)
+function conf_bands_buccheri(model::SdErgm, N, obsT, indTvPar, fVecT_filt, distribFilteredSD, filtCovHatSample, quantilesVals::Vector{Vector{Float64}}, dropOutliers::Bool; nSample = 250, winsorProp=0.005)
     @debug "[conf_bands_buccheri][begin]"
 
     T = length(obsT)
@@ -947,7 +947,7 @@ function conf_bands_buccheri(model::GasNetModel, N, obsT, indTvPar, fVecT_filt, 
 end
 
 
-function conf_bands_par_uncertainty_blasques(model::GasNetModel, obsT, fVecT_filt, distribFilteredSD, quantilesVals::Vector{Vector{Float64}}; nSample = 500)
+function conf_bands_par_uncertainty_blasques(model::SdErgm, obsT, fVecT_filt, distribFilteredSD, quantilesVals::Vector{Vector{Float64}}; nSample = 500)
     
     T = length(obsT)
     nErgmPar = number_ergm_par(model)
@@ -1009,7 +1009,7 @@ function conf_bands_coverage(parDgpTIn, confBandsIn; offset=0 )
 end
 
 
-function plot_filtered(model::GasNetModel, N, fVecT_filtIn; lineType = "-", lineColor = "b", parDgpTIn=zeros(2,2), offset = 0, fig = nothing, ax=nothing, gridFlag=true, xval=nothing)
+function plot_filtered(model::SdErgm, N, fVecT_filtIn; lineType = "-", lineColor = "b", parDgpTIn=zeros(2,2), offset = 0, fig = nothing, ax=nothing, gridFlag=true, xval=nothing)
 
     parDgpT = parDgpTIn[:, 1:end-offset]
     fVecT_filt = fVecT_filtIn[:, 1+offset:end, :, :]
@@ -1045,7 +1045,7 @@ function plot_filtered(model::GasNetModel, N, fVecT_filtIn; lineType = "-", line
 end
 
 
-function plot_filtered_and_conf_bands(model::GasNetModel, N, fVecT_filtIn, confBands1In; lineType = "-", confBands2In =zeros(2,2,2,2), parDgpTIn=zeros(2,2), nameConfBand1="1", nameConfBand2="2", offset = 0, indBand = 1, xval=nothing)
+function plot_filtered_and_conf_bands(model::SdErgm, N, fVecT_filtIn, confBands1In; lineType = "-", confBands2In =zeros(2,2,2,2), parDgpTIn=zeros(2,2), nameConfBand1="1", nameConfBand2="2", offset = 0, indBand = 1, xval=nothing)
 
     parDgpT = parDgpTIn[:, 1:end-offset]
     fVecT_filt = fVecT_filtIn[:, 1+offset:end, :, :]
@@ -1056,7 +1056,7 @@ function plot_filtered_and_conf_bands(model::GasNetModel, N, fVecT_filtIn, confB
 
     nBands = size(confBands1)[3]
 
-    fig, ax = plot_filtered(model::GasNetModel, N, fVecT_filtIn; lineType = lineType, parDgpTIn=parDgpTIn, offset = offset, xval=xval)
+    fig, ax = plot_filtered(model::SdErgm, N, fVecT_filtIn; lineType = lineType, parDgpTIn=parDgpTIn, offset = offset, xval=xval)
 
     for p in 1:number_ergm_par(model)
         isnothing(xval) ? x = collect(1:T) : x = xval
@@ -1096,7 +1096,7 @@ function plot_filtered_and_conf_bands(model::GasNetModel, N, fVecT_filtIn, confB
 end
 
 
-function estimate_and_filter(model::GasNetModel, N, obsT; indTvPar = model.indTvPar, show_trace = false)
+function estimate_and_filter(model::SdErgm, N, obsT; indTvPar = model.indTvPar, show_trace = false)
 
     T = length(obsT)   
     
@@ -1114,7 +1114,7 @@ end
     
 
 
-function conf_bands_given_SD_estimates(model::GasNetModel, N, obsT, vEstSdUnParAll, ftot_0, quantilesVals::Vector{Vector{Float64}}; indTvPar = model.indTvPar, parDgpT=zeros(2,2), plotFlag=false, parUncMethod = "WHITE-MLE", dropOutliers = false, offset = 1,  nSample = 500 , mvSDUnParEstCov = Symmetric(zeros(3,3)), sampleStaticUnPar = zeros(3,3), winsorProp=0, xval=nothing)
+function conf_bands_given_SD_estimates(model::SdErgm, N, obsT, vEstSdUnParAll, ftot_0, quantilesVals::Vector{Vector{Float64}}; indTvPar = model.indTvPar, parDgpT=zeros(2,2), plotFlag=false, parUncMethod = "WHITE-MLE", dropOutliers = false, offset = 1,  nSample = 500 , mvSDUnParEstCov = Symmetric(zeros(3,3)), sampleStaticUnPar = zeros(3,3), winsorProp=0, xval=nothing)
     
     T = length(obsT)
     nStaticPar = length(indTvPar) + 2*sum(indTvPar)
@@ -1266,7 +1266,7 @@ function conf_bands_given_SD_estimates(model::GasNetModel, N, obsT, vEstSdUnParA
 end
 
 
-function estimate_filter_and_conf_bands(model::GasNetModel, A_T, quantilesVals::Vector{Vector{Float64}}; indTvPar = model.indTvPar, parDgpT=zeros(2,2), plotFlag=false, parUncMethod = "WHITE-MLE",show_trace = false)
+function estimate_filter_and_conf_bands(model::SdErgm, A_T, quantilesVals::Vector{Vector{Float64}}; indTvPar = model.indTvPar, parDgpT=zeros(2,2), plotFlag=false, parUncMethod = "WHITE-MLE",show_trace = false)
     
     N = size(A_T)[1]
 
@@ -1287,7 +1287,7 @@ end
 
 
 
-function simulate_and_estimate_parallel(model::GasNetModel, dgpSettings, T, N, nSample , singleSnap = false)
+function simulate_and_estimate_parallel(model::SdErgm, dgpSettings, T, N, nSample , singleSnap = false)
 
     counter = SharedArray(ones(1))
     res = @sync @distributed vcat for k=1:nSample

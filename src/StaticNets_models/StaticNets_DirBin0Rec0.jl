@@ -1,22 +1,22 @@
 """
 ERGM for directed networks with totan links and tortal reciprocated links as statistics 
 """
-Base.@kwdef struct  NetModelDirBin0Rec0 <: NetModel 
+Base.@kwdef struct  ErgmDirBin0Rec0 <: Ergm 
     ergmTermsString::String="edges + mutual" # needs to be compatible with R ergm package 
     nErgmPar = 2
 end
 
 
-ergm_term_string(x::NetModelDirBin0Rec0)  = "edges + mutual"
+ergm_term_string(x::ErgmDirBin0Rec0)  = "edges + mutual"
 
 
-type_of_obs(model::NetModelDirBin0Rec0) =  Array{Float64, 1}
+type_of_obs(model::ErgmDirBin0Rec0) =  Array{Float64, 1}
 
 
 """
 given the 2 model's parameters compute the probabilities for each state of the diad
 """
-function diadProbFromPars(Model::NetModelDirBin0Rec0, par)
+function diadProbFromPars(Model::ErgmDirBin0Rec0, par)
     θ = par[1]
     η = par[2]
     eθ = exp(θ)
@@ -34,7 +34,7 @@ end
 """
 given the vector of diad states probabilities sample one random matrix from the corresponding pdf
 """
-function samplSingMatCan(Model::NetModelDirBin0Rec0, diadProbsVec::Array{<:Real,1}, N)
+function samplSingMatCan(Model::ErgmDirBin0Rec0, diadProbsVec::Array{<:Real,1}, N)
     out = zeros(Int8,N,N)
     #display((maximum(expMat),minimum(expMat)))
     for c = 1:N
@@ -54,7 +54,7 @@ function samplSingMatCan(Model::NetModelDirBin0Rec0, diadProbsVec::Array{<:Real,
 end
 
 
-function sample_ergm(model::NetModelDirBin0Rec0, N, par_vec, nSample)
+function sample_ergm(model::ErgmDirBin0Rec0, N, par_vec, nSample)
 
     θ_0, η_0 = par_vec
 
@@ -66,7 +66,7 @@ function sample_ergm(model::NetModelDirBin0Rec0, N, par_vec, nSample)
 end
 
 
-function stats_from_mat(Model::NetModelDirBin0Rec0, A ::Matrix{<:Real})
+function stats_from_mat(Model::ErgmDirBin0Rec0, A ::Matrix{<:Real})
     L = sum(A)
     R = sum(A'.*A)/2
     N=size(A)[1]
@@ -75,7 +75,7 @@ function stats_from_mat(Model::NetModelDirBin0Rec0, A ::Matrix{<:Real})
 end
 
 
-function exp_val_stats(model::NetModelDirBin0Rec0, θ, η, N)
+function exp_val_stats(model::ErgmDirBin0Rec0, θ, η, N)
     x = exp(θ)
     x2y = exp(2*θ + η)
     z = 1 + 2*x + x2y
@@ -93,7 +93,7 @@ return the ergm parameters that fix on average the input values for the ergm sta
     - L is  ∑_i>j A_ij + A_ji
     - R is  of ∑_i>j A_ij * A_ji /2
 """
-function ergm_par_from_mean_vals(model::NetModelDirBin0Rec0, L, R, N)
+function ergm_par_from_mean_vals(model::ErgmDirBin0Rec0, L, R, N)
     Nlinks = n_pox_dir_links(N)
     # average values per pair
     α = L/Nlinks
@@ -109,33 +109,33 @@ function ergm_par_from_mean_vals(model::NetModelDirBin0Rec0, L, R, N)
 end
 
 
-function estimate(model::NetModelDirBin0Rec0, L, R, N)   
+function estimate(model::ErgmDirBin0Rec0, L, R, N)   
     θ_est, η_est = ergm_par_from_mean_vals(model, L, R, N)
     vPar = [θ_est, η_est]
     return vPar
 end
 
 
-function estimate(Model::NetModelDirBin0Rec0, A::T where T <: Matrix)
+function estimate(Model::ErgmDirBin0Rec0, A::T where T <: Matrix)
     L, R, N = stats_from_mat(Model, A) 
     return estimate(Model, L, R, N)
 end
 
 
-function logLikelihood(Model::NetModelDirBin0Rec0, L, R, N, par)
+function logLikelihood(Model::ErgmDirBin0Rec0, L, R, N, par)
     θ, η = par
     z = 1 + 2*exp(θ) + exp(2*θ+η)
     return L * θ + R*η - (N*(N-1)/2)*log(z)
 end
 
 
-function logLikelihood(Model::NetModelDirBin0Rec0, A::Matrix, par)
+function logLikelihood(Model::ErgmDirBin0Rec0, A::Matrix, par)
     L, R, N = stats_from_mat(Model, A)
     return logLikelihood(Model, L, R, N, par)
 end
 
-estimate_sequence(model::NetModelDirBin0Rec0, obsT::Array{Array{T, 1}} where T <: Real) = reduce(hcat, [estimate(model, obsT[t] ) for t in 1:length(obsT)])
+estimate_sequence(model::ErgmDirBin0Rec0, obsT::Array{Array{T, 1}} where T <: Real) = reduce(hcat, [estimate(model, obsT[t] ) for t in 1:length(obsT)])
 
 
-estimate_sequence(model::NetModelDirBin0Rec0, AT::Array{T, 3} where T <: Real) = reduce(hcat, [estimate(model, AT[:,:,t]) for t in 1:size(AT)[3]])
+estimate_sequence(model::ErgmDirBin0Rec0, AT::Array{T, 3} where T <: Real) = reduce(hcat, [estimate(model, AT[:,:,t]) for t in 1:size(AT)[3]])
 

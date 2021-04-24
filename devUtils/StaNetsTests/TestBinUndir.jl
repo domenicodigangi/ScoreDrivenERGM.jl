@@ -7,10 +7,10 @@ NgroupsMemb = sortrows([[i for i in keys(tmpDic)] [  tmpDic[i] for i in keys(tmp
 
 deltaN = 3
 groupsPar =  ones(Ngroups)
-degGroups =  DegSeq2graphDegSeq(fooNetModelBin1, Array{Real,1}(linspace(1+deltaN,N - round(0.1*N)-deltaN,N)))
+degGroups =  DegSeq2graphDegSeq(fooErgmBin1, Array{Real,1}(linspace(1+deltaN,N - round(0.1*N)-deltaN,N)))
 #tmpdegs = [8, 4, 7, 8, 5, 5, 6, 5, 6, 0]
-#sort([7, 5, 8, 9, 8, 5, 4, 2, 8, 4],rev = true)# DegSeq2graphDegSeq(fooNetModelBin1, sort([9, 8, 4, 7, 3, 6, 4, 7, 4, 2],rev = true))
-Mod = NetModelBin1(degGroups,groupsPar,groupsInds)
+#sort([7, 5, 8, 9, 8, 5, 4, 2, 8, 4],rev = true)# DegSeq2graphDegSeq(fooErgmBin1, sort([9, 8, 4, 7, 3, 6, 4, 7, 4, 2],rev = true))
+Mod = ErgmBin1(degGroups,groupsPar,groupsInds)
 groupsPar, nIterm,estMod = estimate(Mod)
 firstOrderCond(Mod;deg = tmpdegs,par = groupsPar, groupsInds = groupsInds )
 expMatrix(Mod,groupsPar[groupsInds])
@@ -26,7 +26,7 @@ relErrSam = maximum(abs.(( degGroupsSam - degGroups )./degGroups ))
 ## Test estimate umbiasedness
 estParSam = zeros(N,Nsample)
 @time for n=1:Nsample
-    degs_n = expValStatsFromMat(fooNetModelBin1,sam[:,:,n] )
+    degs_n = expValStatsFromMat(fooErgmBin1,sam[:,:,n] )
     estParSam[:,n], ~,~ = estimate(Mod; deg= degs_n)
 end
 

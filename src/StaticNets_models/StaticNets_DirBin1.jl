@@ -2,7 +2,7 @@
 #Binary DIRECTED Networks
 ##
 
-struct  NetModelDirBin1 <: NetModel #Bin stands for (Binary) Adjacency matrix
+struct  ErgmDirBin1 <: Ergm #Bin stands for (Binary) Adjacency matrix
     "ERGM for directed networks with in and out degrees as statistics and
     possibility to have groups of nodes associated with a single pair of in out
     parameters. "
@@ -11,10 +11,10 @@ struct  NetModelDirBin1 <: NetModel #Bin stands for (Binary) Adjacency matrix
     groupsInds::Array{<:Real,1} #The index of the groups each node belongs to
     # two parameters per node (In and out)
  end
-fooNetModelDirBin1 =  NetModelDirBin1(ones(6),zeros(6),ones(3))
-NetModelDirBin1(deg:: Array{<:Real,1}) =  NetModelDirBin1(deg,zeros(length(deg[:])) , Int.(1:round(Int,length(deg[:])/2)))
+fooErgmDirBin1 =  ErgmDirBin1(ones(6),zeros(6),ones(3))
+ErgmDirBin1(deg:: Array{<:Real,1}) =  ErgmDirBin1(deg,zeros(length(deg[:])) , Int.(1:round(Int,length(deg[:])/2)))
 
-function identify(Model::NetModelDirBin1,parIO::Array{<:Real,1};idType ="equalIOsums" )
+function identify(Model::ErgmDirBin1,parIO::Array{<:Real,1};idType ="equalIOsums" )
     "Given a vector of parameters, return the transformed vector that verifies
     an identification condition. Do not do anything if the model is identified."
     #set the first of the in parameters equal to one (Restricted version)
@@ -31,7 +31,7 @@ function identify(Model::NetModelDirBin1,parIO::Array{<:Real,1};idType ="equalIO
   end
 
 
-function DegSeq2graphDegSeq(Model::NetModelDirBin1,SeqIO::Array{<:Real,1})
+function DegSeq2graphDegSeq(Model::ErgmDirBin1,SeqIO::Array{<:Real,1})
     #From a degree sequence find another one that is certanly graphicable
     #The matrix associated with the starting degree sequence is very hubs oriented
 
@@ -62,7 +62,7 @@ function DegSeq2graphDegSeq(Model::NetModelDirBin1,SeqIO::Array{<:Real,1})
     graphSeq= [sumSq(mat,2); sumSq(mat,1)]
     return graphSeq
  end
-function zeroDegParFun(Model::NetModelDirBin1,N::Int;degsIO=zeros(Int,10),
+function zeroDegParFun(Model::ErgmDirBin1,N::Int;degsIO=zeros(Int,10),
             parIO=zeros(Float64,10), method="AVGSPACING" ,smallProb = 1e-1)
     #define a number big enough to play the role of Inf for
     # purposes of sampling N(N-1) bernoulli rvs with prob 1/(1+exp(  bigNumb))
@@ -94,13 +94,13 @@ function zeroDegParFun(Model::NetModelDirBin1,N::Int;degsIO=zeros(Int,10),
     end
     return zeroDegParI,zeroDegParO
  end
-function linSpacedPar(Model::NetModelDirBin1,Nnodes::Int;Ngroups = Nnodes,deltaN::Int=3,graphConstr = true,degMax = Nnodes-2)
+function linSpacedPar(Model::ErgmDirBin1,Nnodes::Int;Ngroups = Nnodes,deltaN::Int=3,graphConstr = true,degMax = Nnodes-2)
     "for a given static model return a widely spaced sequence of groups parameters"
     N=Nnodes
     #generate syntetic degree distributions, equally spaced, and estimate the model
     tmpdegsIO = round.([ Vector(range(deltaN,stop=degMax,length=N));Vector(range(deltaN,stop=degMax,length=N))])
     if graphConstr
-        tmpdegsIO  =   DegSeq2graphDegSeq(fooNetModelDirBin1,tmpdegsIO)
+        tmpdegsIO  =   DegSeq2graphDegSeq(fooErgmDirBin1,tmpdegsIO)
     end
 
     if Ngroups>N#if more groups than nodes are required throw an error
@@ -108,10 +108,10 @@ function linSpacedPar(Model::NetModelDirBin1,Nnodes::Int;Ngroups = Nnodes,deltaN
     else
         groupsInds = distributeAinVecN(Vector(1:Ngroups),Nnodes)
     end
-    out,it,estMod = estimate(NetModelDirBin1(tmpdegsIO))
+    out,it,estMod = estimate(ErgmDirBin1(tmpdegsIO))
     return out,tmpdegsIO
  end
-function samplSingMatCan(Model::NetModelDirBin1,expMat::Array{<:Real,2})
+function samplSingMatCan(Model::ErgmDirBin1,expMat::Array{<:Real,2})
     """
     given the expected matrix sample one ranUtilities matrix from the corresponding pdf
     """
@@ -128,7 +128,7 @@ function samplSingMatCan(Model::NetModelDirBin1,expMat::Array{<:Real,2})
     end
     return out
  end
-function expMatrix2(Model::NetModelDirBin1, parNodesIO::Array{<:Real,1}  )
+function expMatrix2(Model::ErgmDirBin1, parNodesIO::Array{<:Real,1}  )
     "Given the vector of model parameters (groups), return the product matrix(often useful
     in likelihood computation) and the expected matrix"
     N,parI,parO = splitVec(parNodesIO)
@@ -136,15 +136,15 @@ function expMatrix2(Model::NetModelDirBin1, parNodesIO::Array{<:Real,1}  )
     expMat = parMat ./ (1 .+ parMat)
     return parMat,expMat
  end
-expMatrix(Model::NetModelDirBin1, parNodesIO::Array{<:Real,1}  ) = expMatrix2(Model, parNodesIO )[2]# return only the expected matrix given the parameters
-function expValStatsFromMat(Model::NetModelDirBin1,expMat::Array{<:Real,2}  )
+expMatrix(Model::ErgmDirBin1, parNodesIO::Array{<:Real,1}  ) = expMatrix2(Model, parNodesIO )[2]# return only the expected matrix given the parameters
+function expValStatsFromMat(Model::ErgmDirBin1,expMat::Array{<:Real,2}  )
     "Expected value of the statistic for a model, given the expected matrix"
     expDeg = [sumSq(expMat,2);sumSq(expMat,1)]
     expValStats = expDeg
     return expValStats
  end
-expValStats(Model::NetModelDirBin1, parNodesIO::Array{<:Real,1} ) = expValStatsFromMat(Model, expMatrix(Model,parNodesIO )) # if only the paramters are given as input
-function firstOrderCond(Model::NetModelDirBin1;degIO::Array{<:Real,1} = Model.obs,
+expValStats(Model::ErgmDirBin1, parNodesIO::Array{<:Real,1} ) = expValStatsFromMat(Model, expMatrix(Model,parNodesIO )) # if only the paramters are given as input
+function firstOrderCond(Model::ErgmDirBin1;degIO::Array{<:Real,1} = Model.obs,
                     degGroups::Array{<:Real,1} = zeros(4), parGroupsIO::Array{<:Real,1}=Model.Par, groupsInds::Array{<:Real,1} = Model.groupsInds )
     "Given the model, the degree sequence, the parameters and groups assignements,
     return the First order conditions. Gradient of the loglikelihood, or system
@@ -169,7 +169,7 @@ function firstOrderCond(Model::NetModelDirBin1;degIO::Array{<:Real,1} = Model.ob
  end
 
 
-function estimateSlow(Model::NetModelDirBin1; degIO::Array{<:Real,1} = Model.obs,
+function estimateSlow(Model::ErgmDirBin1; degIO::Array{<:Real,1} = Model.obs,
                     groupsInds = Int.(1:round(length(degIO)/2)), targetErr::Real=targetErrValStaticNets,
                     startVals =zeros(2))
     "Given model type, observations of the statistics and groups assignments,
@@ -199,7 +199,7 @@ function estimateSlow(Model::NetModelDirBin1; degIO::Array{<:Real,1} = Model.obs
     unifstartval =  sqrt((LperLink/((1-LperLink))));
     if NG==1
         outParUN = [ 0 ; log(unifstartval)]
-        outMod = NetModelDirBin1(Model.obs,outParUN,groupsInds)
+        outMod = ErgmDirBin1(Model.obs,outParUN,groupsInds)
         i = 0
     else
         parI = unifstartval*ones(NG)
@@ -313,7 +313,7 @@ function estimateSlow(Model::NetModelDirBin1; degIO::Array{<:Real,1} = Model.obs
     end
     return parUN, i
  end
-function estimate(model::NetModelDirBin1; degIO::Array{<:Real,1} = model.obs,
+function estimate(model::ErgmDirBin1; degIO::Array{<:Real,1} = model.obs,
                     targetErr::Real=targetErrValStaticNets,identIter = false)
     ## Write and test a new way to estimate DirBOIn1 following Chatterjee, Diaconis and  Sly
     N,degI,degO = splitVec(degIO)
@@ -370,7 +370,7 @@ function estimate(model::NetModelDirBin1; degIO::Array{<:Real,1} = model.obs,
  end
  #
 
-function sampl(Model::NetModelDirBin1,Nsample::Int;  parGroupsIO::Array{<:Real,1}=Model.Par, groupsInds = Model.groupsInds )
+function sampl(Model::ErgmDirBin1,Nsample::Int;  parGroupsIO::Array{<:Real,1}=Model.Par, groupsInds = Model.groupsInds )
     NGcheck,parI,parO = splitVec(parGroupsIO)
     parNodesIO = [parI[groupsInds];parO[groupsInds]]
     expMat = expMatrix(Model, parNodesIO)
@@ -403,16 +403,16 @@ function estimate(Model::SnapSeqNetDirBin1; degsIO_T::Array{<:Real,2}=Model.obsT
    for t = 1:T
        degs_t = degsIO_T[:,t]
       # println(degs_t)
-       UnPar_t , Niter1,Niter2  = estimate(fooNetModelDirBin1; degIO = degs_t ,
+       UnPar_t , Niter1,Niter2  = estimate(fooErgmDirBin1; degIO = degs_t ,
                                     targetErr =  targetErr,identIter=identIter)
-       zeroParI,zeroParO = zeroDegParFun(fooNetModelDirBin1,N;
+       zeroParI,zeroParO = zeroDegParFun(fooErgmDirBin1,N;
                                         degsIO=degsIO_T[:,t],parIO = UnPar_t )
       # println((zeroParI,zeroParO))
        !isfinite(zeroParI) ? error() : ()
        !isfinite(zeroParO) ? error() : ()
        UnPar_t[findall(degs_t[1:N].==0)] .= zeroParI
        UnPar_t[N .+ findall(degs_t[1+N:2N].==0)] .= zeroParO
-       identPost ? UnParT[:,t] = identify(fooNetModelDirBin1,UnPar_t) :
+       identPost ? UnParT[:,t] = identify(fooErgmDirBin1,UnPar_t) :
                                     UnParT[:,t] = UnPar_t
        #round(t/T,1)>prog ?  (prog = round(t/T,1);println(prog)) : ()
 
@@ -428,7 +428,7 @@ function sampl(Model::SnapSeqNetDirBin1, vParUnIO_T::Array{<:Real,2}; Nsample::I
     SampleMats =zeros(Int8,Nsample,N,N,T)
     for s=1:Nsample
         for t = 1:T
-            SampleMats[s,:,:,t] = samplSingMatCan(fooNetModelDirBin1,expMatrix(fooNetModelDirBin1,vParUnIO_T[:,t]))
+            SampleMats[s,:,:,t] = samplSingMatCan(fooErgmDirBin1,expMatrix(fooErgmDirBin1,vParUnIO_T[:,t]))
         end
     end
     Nsample == 1  ?  (return squeeze(SampleMats,1)) : (return SampleMats )
@@ -437,7 +437,7 @@ function sampl(Model::SnapSeqNetDirBin1, vParUnIO_T::Array{<:Real,2}; Nsample::I
  #---------------------------------Binary DIRECTED Networks with predetermined COVARIATES
 
  #
- # struct  NetModelDirBin1X0 <: NetModelBin #Bin stands for (Binary) Adjacency matrix
+ # struct  ErgmDirBin1X0 <: ErgmBin #Bin stands for (Binary) Adjacency matrix
  #                                        # X for regressors and 0(lower level pox) for link specific parameters
  #    "ERGM with in and out node specific parameters and dependence on link
  #    specific regressors trough link specific parameters (0)  "
@@ -448,8 +448,8 @@ function sampl(Model::SnapSeqNetDirBin1, vParUnIO_T::Array{<:Real,2}; Nsample::I
  #    parDegs:: Array{<:Real,2} # One parameter per node  UNRESTRICTED VERSION  [InPar OutPar]
  #    parRegs:: Array{<:Real,2} #one parameter for each link associated with each regressor
  # end
- # fooNetModelDirBin1X0 =  NetModelDirBin1X0(tmpArrayAdjmatrEqual(6,10),ones(6,6,10),zeros(6,2),ones(6,6))
- # NetModelDirBin1X0(Amats:: BitArray{3},regs0::Array{<:Real,3}) =  (N =length(Amats[:,1,1]); NetModelDirBin1X0(Amats,regs0, zeros(N ,2) , zeros(N,N) ))
+ # fooErgmDirBin1X0 =  ErgmDirBin1X0(tmpArrayAdjmatrEqual(6,10),ones(6,6,10),zeros(6,2),ones(6,6))
+ # ErgmDirBin1X0(Amats:: BitArray{3},regs0::Array{<:Real,3}) =  (N =length(Amats[:,1,1]); ErgmDirBin1X0(Amats,regs0, zeros(N ,2) , zeros(N,N) ))
 
 function defineConstDegs(degsIO_T;thVarConst = 0.005)
         N2 = length(degsIO_T[:,1])
@@ -535,7 +535,7 @@ function nowCastEvalFitNet(allFit::Array{Float64,2}, obsNet_T::BitArray{3};
                 expMat =  expMat_T[:,:,t]
                 #println(size(expMat))
             else
-                expMat = expMatrix(fooNetModelDirBin1,testFit[:,t])
+                expMat = expMatrix(fooErgmDirBin1,testFit[:,t])
             end
             foreVals[lastInd:lastInd+Nlinksnnc-1] = expMat[noDiagIndnnc]
             realVals[lastInd:lastInd+Nlinksnnc-1] = adjMat[noDiagIndnnc]
@@ -551,7 +551,7 @@ function nowCastEvalFitNet(allFit::Array{Float64,2}, obsNet_T::BitArray{3};
             if inputExpMat
                 expMat =  expMat_T[:,:,t]
             else
-                expMat = expMatrix(fooNetModelDirBin1,testFit[:,t-shift])
+                expMat = expMatrix(fooErgmDirBin1,testFit[:,t-shift])
             end
 
 
@@ -585,12 +585,12 @@ function dgpFitVarN(N::Int,degMin::Int,degMax::Int;exponent = 1)
 
     degIOUncMeans = repeat(round.(Int,Vector(tmp.*(degMax/tmp[end]) )),2)
     degIOUncMeans[degIOUncMeans.<degMin] = degMin
-    meanFit ,~ = StaticNets.estimate(StaticNets.NetModelDirBin1(degIOUncMeans),degIO = degIOUncMeans)
-    expDegs = StaticNets.expValStats(fooNetModelDirBin1,meanFit)
+    meanFit ,~ = StaticNets.estimate(StaticNets.ErgmDirBin1(degIOUncMeans),degIO = degIOUncMeans)
+    expDegs = StaticNets.expValStats(fooErgmDirBin1,meanFit)
     return meanFit, expDegs
 end
 
-function dgpDynamic(model::NetModelDirBin1,mode,N::Int,T::Int;NTV = 2,degIOUncMeans::Array{Float64,1} =zeros(10),
+function dgpDynamic(model::ErgmDirBin1,mode,N::Int,T::Int;NTV = 2,degIOUncMeans::Array{Float64,1} =zeros(10),
                     degb = [10, 40])
     if sum(degIOUncMeans)==0 # if the unconditional means of degrees are not Given then fix them
         degIOUncMeans = range(1,stop=10,length=N)
@@ -608,7 +608,7 @@ function dgpDynamic(model::NetModelDirBin1,mode,N::Int,T::Int;NTV = 2,degIOUncMe
     indsTV = round.(Int,range(2, stop=N, length=NTV))
     indLogTV = falses(N);indLogTV[indsTV] .= true; indLogTV = repeat(indLogTV,2)
 
-    meanFit ,~ = StaticNets.estimate(StaticNets.NetModelDirBin1(degIOUncMeans),degIO = degIOUncMeans)
+    meanFit ,~ = StaticNets.estimate(StaticNets.ErgmDirBin1(degIOUncMeans),degIO = degIOUncMeans)
     #define the oscillations bounds for the fitnesses
     periodOsc = round(Int,T/2)
 

@@ -36,13 +36,13 @@ using ..StaticNets
 const targetErrValDynNets = 0.01
 
 
-include("./DynNets_models/DynNets_Abstract_GasNetModel.jl")
+include("./DynNets_models/DynNets_Abstract_SdErgm.jl")
 
-include("./DynNets_models/DynNets_GasNetModelDirBin1.jl")
+include("./DynNets_models/DynNets_SdErgmDirBin1.jl")
 
 include("./DynNets_models/DynNets_SdErgmPml.jl")
 
-include("./DynNets_models/DynNets_GasNetModelDirBin0Rec0.jl")
+include("./DynNets_models/DynNets_SdErgmDirBin0Rec0.jl")
 
 end
 

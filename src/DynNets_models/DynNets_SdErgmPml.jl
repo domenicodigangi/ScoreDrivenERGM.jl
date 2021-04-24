@@ -1,9 +1,9 @@
 import ..StaticNets
 
-import ..StaticNets:NetModeErgmPml, NetModelDirBin0Rec0
+import ..StaticNets:NetModeErgmPml, ErgmDirBin0Rec0
 
 
-Base.@kwdef struct  SdErgmPml <: GasNetModel
+Base.@kwdef struct  SdErgmPml <: SdErgm
     staticModel::NetModeErgmPml
     indTvPar :: BitArray{1} 
     scoreScalingType::String = "HESS_D" # String that specifies the rescaling of the score. For a list of possible choices see function scalingMatGas
@@ -25,8 +25,8 @@ function name(x::SdErgmPml)
         optString = ", " * reduce(*,["$k = $v, " for (k,v) in x.options])[1:end-2]
     end
     
-    if x.staticModel.ergmTermsString == ergm_term_string(NetModelDirBin0Rec0())
-        return  "GasNetModelDirBin0Rec0_pmle($(x.indTvPar), scal = $(x.scoreScalingType)$optString)"
+    if x.staticModel.ergmTermsString == ergm_term_string(ErgmDirBin0Rec0())
+        return  "SdErgmDirBin0Rec0_pmle($(x.indTvPar), scal = $(x.scoreScalingType)$optString)"
     else
         return  "SdErgmPML($(x.indTvPar), scal = $(x.scoreScalingType)$optString)"
     end
@@ -79,8 +79,8 @@ end
 
 
 function reference_model(model::SdErgmPml) 
-    if model.staticModel.ergmTermsString == ergm_term_string(NetModelDirBin0Rec0())
-        return GasNetModelDirBin0Rec0_mle(scoreScalingType=model.scoreScalingType, indTvPar = model.indTvPar)
+    if model.staticModel.ergmTermsString == ergm_term_string(ErgmDirBin0Rec0())
+        return SdErgmDirBin0Rec0_mle(scoreScalingType=model.scoreScalingType, indTvPar = model.indTvPar)
     end
 end
 

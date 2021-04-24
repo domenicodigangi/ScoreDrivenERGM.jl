@@ -1,7 +1,7 @@
 """
 A generic ERGM for directed networks to be estimated using the pseudo likelihood 
 """
-struct  NetModeErgmPml <: NetModel 
+struct  NetModeErgmPml <: Ergm 
     ergmTermsString::String # needs to be compatible with R ergm package notation and names
     isDirected::Bool
     nErgmPar::Int

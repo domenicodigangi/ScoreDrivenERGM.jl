@@ -25,7 +25,7 @@ N_ind = length(Tvals)[1]
 #the values for the unconidtional means to be used in the DGP are obtained estimating
 #an equally spaced degree sequence
 tmpDegs = Array{Real,1}(linspace(2,N-2,N))'; tmpdegsT = repmat(tmpDegs,2,1)#ones(N)*N/2
-tmpModel =  DynNets.GasNetModel1(tmpdegsT,[zeros(N),zeros(GTV),zeros(GTV)],
+tmpModel =  DynNets.SdErgm1(tmpdegsT,[zeros(N),zeros(GTV),zeros(GTV)],
                                     zeros(Int,N),
                                     falses(1))
 
@@ -64,7 +64,7 @@ sim_W = realUm.*(1-sim_B)
                                                     BgasGroups = sim_B,
                                                     WgasNodes = sim_W )
         degsT = squeeze(sum(Y_T,2),2)
-        model_data = DynNets.GasNetModel1(   degsT,
+        model_data = DynNets.SdErgm1(   degsT,
                                                 [zeros(N),zeros(Ngroups),zeros(Ngroups)],
                                                 groupsInds,
                                                 indTvGroups)

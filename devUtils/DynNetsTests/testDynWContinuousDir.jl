@@ -6,9 +6,9 @@ maxW = 200000
 minW = 10000
 tmpStrIO = round.([ Vector(linspace(minW,maxW,N));Vector(linspace(minW,maxW ,N))])
 N, StrI,StrO = splitVec(tmpStrIO);sum(StrI) == sum(StrO)?():error()
-dgpStrIO  =   StaticNets.DegSeq2graphDegSeq(StaticNets.fooNetModelDirWCount1,tmpStrIO)
+dgpStrIO  =   StaticNets.DegSeq2graphDegSeq(StaticNets.fooErgmDirWCount1,tmpStrIO)
 groupsInds = [Utilities.distributeAinVecN(Int.(1:NG),N) , Utilities.distributeAinVecN(Int.(1:1),NG) , Utilities.distributeAinVecN(Int.(1:1),NG)]
-StaMod = StaticNets.NetModelDirW1(Int.(dgpStrIO),[zeros(Float64,2N),zeros(Float64,1)],groupsInds[1])
+StaMod = StaticNets.ErgmDirW1(Int.(dgpStrIO),[zeros(Float64,2N),zeros(Float64,1)],groupsInds[1])
 estPar,estIt,estMod = StaticNets.estimate(StaMod)
 uBndPar = StaticNets.bndPar2uBndPar(StaMod,estPar)
 # Test Dgp
@@ -18,20 +18,20 @@ W = uBndPar.*(1-B)
 T =300
 dgpParArr = [W,B,A];dgpParVec = [W;B;A]
 scalingType = "FISHER-DIAG"
-mod2Samp = GasNetModelDirW1(ones(T,2N), [ zeros(2N) ,0.9  * ones(1), 0.01 * ones(1)], groupsInds,scalingType)
+mod2Samp = SdErgmDirW1(ones(T,2N), [ zeros(2N) ,0.9  * ones(1), 0.01 * ones(1)], groupsInds,scalingType)
 NumberOfGroupsAndABindNodes(mod2Samp,groupsInds)
 
 
 Y_T, Fitness_TIO = score_driven_filter_or_dgp(mod2Samp,[W;B;A];dgpTN = (T,N))
 StrI = sumSq(Y_T,3) ; StrO = sumSq(Y_T,2); StrIO = [StrI  StrO]
-Mod2est = GasNetModelDirW1(StrIO,dgpParArr, groupsInds,scalingType)
+Mod2est = SdErgmDirW1(StrIO,dgpParArr, groupsInds,scalingType)
 #test filter
 Fitness_TIO_Fil, loglike = score_driven_filter_or_dgp(Mod2est,dgpParVec; groupsInds = groupsInds)
 Fitness_TIO - Fitness_TIO_Fil
 estimateSnapSeq(Mod2est;print_t = true)
 
-hatBndPar,x,xx = StaticNets.estimate(StaticNets.fooNetModelDirW1;strIO = StrIO[19,:],groupsInds = groupsInds[1] )
-hatUbndPar = StaticNets.bndPar2uBndPar(StaticNets.fooNetModelDirW1,hatBndPar)
+hatBndPar,x,xx = StaticNets.estimate(StaticNets.fooErgmDirW1;strIO = StrIO[19,:],groupsInds = groupsInds[1] )
+hatUbndPar = StaticNets.bndPar2uBndPar(StaticNets.fooErgmDirW1,hatBndPar)
 
 (hatBndPar[1:N] .+ hatBndPar[N+1:2N]' .>=0)
 minInd = indmin(hatBndPar[N+1:2N])
@@ -79,7 +79,7 @@ Y_T, Fitness_TIO =score_driven_filter_or_dgp(Mod2est,[W_prob;B_prob;A_prob]; gro
 ##
 MeanStrT =  meanSq(Mod2est.obsT,1)
 [MeanStrT[1:N] MeanStrT[N+1:2N]]
-staMod =  StaticNets.NetModelDirW1((MeanStrT),[zeros(Float64,2N),zeros(Float64,1)],groupsInds[1])
+staMod =  StaticNets.ErgmDirW1((MeanStrT),[zeros(Float64,2N),zeros(Float64,1)],groupsInds[1])
 StaticNets.estimate(staMod)
 MeanStrT[N+1:end] = -MeanStrT[N+1:end]
 sum(MeanStrT)

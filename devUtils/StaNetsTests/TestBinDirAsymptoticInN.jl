@@ -16,7 +16,7 @@ for k=1:Nsizes
     deltaN = 5
     maxDeg = sqrt(N)
     tmpdegsIO = round.([ linspace(deltaN,maxDeg,N);Vector(linspace(deltaN,maxDeg,N))])
-    dgpPar,dgpDegs, = estimate(NetModelDirBin1(tmpdegsIO))
+    dgpPar,dgpDegs, = estimate(ErgmDirBin1(tmpdegsIO))
     #remove infinities
     dgpPar[.!isfinite(dgpPar)] = -3
 
@@ -26,7 +26,7 @@ for k=1:Nsizes
     C = L
     errBnd = C*sqrt(log(N)/N )
     prob = 1 - C/(N^2)
-    dgpMod = NetModelDirBin1(zeros(dgpDegs),dgpPar,Int.(1:N))
+    dgpMod = ErgmDirBin1(zeros(dgpDegs),dgpPar,Int.(1:N))
     findmax(dgpDegs)
     #sample the dgp model
     sam = sampl(dgpMod,Nsample )
@@ -37,7 +37,7 @@ for k=1:Nsizes
     #estimate
     for i=1:Nsample
         println(i)
-        estPar[:,i]= estimate(fooNetModelDirBin1;degIO =degsIO_Sample[:,i])[1]
+        estPar[:,i]= estimate(fooErgmDirBin1;degIO =degsIO_Sample[:,i])[1]
     end
 
     estPar[.!isfinite(estPar)] = -3
@@ -53,7 +53,7 @@ plt[:hist]([diff[i][:] for i = 1:Nsizes] ,15,density=true )
   xlabel("θ_est - θ_dgp  ")
  grid(which = "both" , linewidth=1,alpha = 0.5)
 ##
-Mod = NetModelDirBin1(deg,zeros(N),groupsInds)
+Mod = ErgmDirBin1(deg,zeros(N),groupsInds)
 groupsNames = unique(groupsInds)
 NG = length(groupsNames)
 tmpDic = countmap(groupsInds)
@@ -100,7 +100,7 @@ degsIO_T = [sumSq(matA_T,2);sumSq(matA_T,1)]
 T = size(matA_T)[3]
 allFitSS =  StaticNets.estimate( StaticNets.SnapSeqNetDirBin1(degsIO_T); identPost = false,identIter= true )
 dgpPar = meanSq(allFitSS,2 )
-expDgpMat = StaticNets.expMatrix(fooNetModelDirBin1,dgpPar)
+expDgpMat = StaticNets.expMatrix(fooErgmDirBin1,dgpPar)
 dgpDegs = [sumSq(expDgpMat,2); sumSq(expDgpMat,1)]
 N = length(matA_T[1,:,1])
 Nsample = 1000
@@ -108,7 +108,7 @@ L = maximum(abs.(dgpPar))
 C = L
 errBnd = C*sqrt(log(N)/N )
 prob = 1 - C/(N^2)
-dgpMod = NetModelDirBin1(zeros(dgpDegs),dgpPar,Int.(1:N))
+dgpMod = ErgmDirBin1(zeros(dgpDegs),dgpPar,Int.(1:N))
 findmax(dgpDegs)
 #sample the dgp model
 sam = sampl(dgpMod,Nsample )
@@ -120,8 +120,8 @@ estDegs = zeros(2N,Nsample)
 #estimate
 for i=1:Nsample
     println(i)
-    estPar[:,i]= estimate(fooNetModelDirBin1;degIO =degsIO_Sample[:,i])[1]
-    expEstMat = StaticNets.expMatrix(fooNetModelDirBin1,estPar[:,i])
+    estPar[:,i]= estimate(fooErgmDirBin1;degIO =degsIO_Sample[:,i])[1]
+    expEstMat = StaticNets.expMatrix(fooErgmDirBin1,estPar[:,i])
     estDegs[:,i] = [sumSq(expEstMat,2); sumSq(expEstMat,1)]
 
 end

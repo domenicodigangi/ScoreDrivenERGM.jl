@@ -8,10 +8,10 @@ using Distributions, StatsBase,Optim, LineSearches, StatsFuns, Roots
 using StaticNets,Utilities
 using ForwardDiff
 
-abstract type GasNetModel end
-abstract type GasNetModelW <: GasNetModel end
-abstract type GasNetModelWcount <: GasNetModelW end
-abstract type GasNetModel <: GasNetModel end
+abstract type SdErgm end
+abstract type SdErgmW <: SdErgm end
+abstract type SdErgmWcount <: SdErgmW end
+abstract type SdErgm <: SdErgm end
 
 #constants
 
@@ -19,7 +19,7 @@ abstract type GasNetModel <: GasNetModel end
 
 
 # Directed NEtworks
-struct  GasNetModelDirW1 <: GasNetModelW
+struct  SdErgmDirW1 <: SdErgmW
      """ A Logistic Gas model for Directed Weighted networks and probability depending only
              on time varying parameters.
              ''\p^{(t)}_{ij}  = logistic( \theta^{(t)}_i + \theta^{(t)}_j)''
@@ -42,44 +42,44 @@ struct  GasNetModelDirW1 <: GasNetModelW
   end
 
 #inizializza senza specificare assenza di scaling
-GasNetModelDirW1( obsT , Par  , groupsInds) =
-        GasNetModelDirW1( obsT,Par, groupsInds,"FISHER-DIAG")
+SdErgmDirW1( obsT , Par  , groupsInds) =
+        SdErgmDirW1( obsT,Par, groupsInds,"FISHER-DIAG")
 #Initialize by observations only
-GasNetModelDirW1(obsT:: Array{<:Real,2}) =   (N = round(length(obsT[1,:])/2);
-                                                GasNetModelDirW1(obsT,
+SdErgmDirW1(obsT:: Array{<:Real,2}) =   (N = round(length(obsT[1,:])/2);
+                                                SdErgmDirW1(obsT,
                                                     [ zeros(2N) ,0.9  * ones(1), 0.01 * ones(1)],
                                                     [Int.(1:N),Int.(ones(N)),Int.(ones(N))],"FISHER-DIAG") )
-fooGasNetModelDirW1 = GasNetModelDirW1(ones(100,20))
+fooSdErgmDirW1 = SdErgmDirW1(ones(100,20))
 
 # Relations between Static and Dynamical models: conventions on storage for
 # parameters and observations
-StaModType(Model::GasNetModelDirW1) = StaticNets.fooNetModelDirW1# to be substituted with a conversion mechanism
-# linSpacedPar(Model::GasNetModelDirBin1,Nnodes::Int;NgroupsW = Nnodes, deltaN::Int=3,graphConstr = true) =
+StaModType(Model::SdErgmDirW1) = StaticNets.fooErgmDirW1# to be substituted with a conversion mechanism
+# linSpacedPar(Model::SdErgmDirBin1,Nnodes::Int;NgroupsW = Nnodes, deltaN::Int=3,graphConstr = true) =
 #         StaticNets.linSpacedPar(StaModType(Model),Nnodes;Ngroups = NgroupsW,deltaN=deltaN,graphConstr =graphConstr);
 #
 # options and conversions of parameters for optimization
 
 
 
-function NumberOfGroups(Model::GasNetModelDirW1,groupsInds::Array{Array{Int,1},1})
+function NumberOfGroups(Model::SdErgmDirW1,groupsInds::Array{Array{Int,1},1})
      NGW = length(unique(groupsInds[1]))
      GBA = length( unique( [groupsInds[2][.!(groupsInds[2].==0)] ; groupsInds[3][.!(groupsInds[3].==0)] ]) )
       return NGW, GBA
  end
-function NumberOfGroupsAndABindNodes(Model::GasNetModelDirW1,groupsInds::Array{Array{Int,1},1})
+function NumberOfGroupsAndABindNodes(Model::SdErgmDirW1,groupsInds::Array{Array{Int,1},1})
      NGW = length(unique(groupsInds[1]))
      GBA = length( unique( [groupsInds[2][.!(groupsInds[2].==0)] ; groupsInds[3][.!(groupsInds[3].==0)] ]) )
      ABgroupsIndNodesIO = [groupsInds[2][groupsInds[1]] ; groupsInds[3][groupsInds[1]] ]
      indTvNodesIO =   (.!(ABgroupsIndNodesIO .==0))#if at least one group ind is zero then both in and out tv par are constant
      return NGW, GBA, ABgroupsIndNodesIO, indTvNodesIO
  end
-function vec2ArrayGasPar(Model::GasNetModelDirW1,VecGasPar::Array{<:Real,1})
+function vec2ArrayGasPar(Model::SdErgmDirW1,VecGasPar::Array{<:Real,1})
      groupsInds = Model.groupsInds
      NGW, GBA = NumberOfGroups(Model,groupsInds)
      ArrayGasPar =  [VecGasPar[1:2NGW],ones(GBA).*VecGasPar[2NGW+1:2NGW+GBA],ones(GBA).*VecGasPar[2NGW+GBA+1:2NGW + 2GBA]]
      return ArrayGasPar
      end
-function restrictGasPar(Model::GasNetModelDirW1,vecUnGasPar::Array{<:Real,1})
+function restrictGasPar(Model::SdErgmDirW1,vecUnGasPar::Array{<:Real,1})
      "From the Unrestricted values of the parameters return the restricted ones
      takes as inputs a vector of parameters that can take any value in R and returns
      the appropriately contrained values, e.g. the coefficient of autoregressive
@@ -95,7 +95,7 @@ function restrictGasPar(Model::GasNetModelDirW1,vecUnGasPar::Array{<:Real,1})
      vecRePar =  [W_Re; diag_B_Re; diag_A_Re]
      return vecRePar
      end
-function unRestrictGasPar( Model::GasNetModelDirW1,vecReGasPar::Array{<:Real,1})
+function unRestrictGasPar( Model::SdErgmDirW1,vecReGasPar::Array{<:Real,1})
      "From the restricted values of the parameters return the unrestricted ones
      takes as inputs a vector of parameters that can take any value in R and returns
      the appropriately contrained values, i.e. the coefficient of autoregressive
@@ -115,7 +115,7 @@ function unRestrictGasPar( Model::GasNetModelDirW1,vecReGasPar::Array{<:Real,1})
      end
 
 
-function uBndPar2bndPar_T(Model::GasNetModelDirW1, uBndParNodesIO_T::Array{<:Real,2}  )
+function uBndPar2bndPar_T(Model::SdErgmDirW1, uBndParNodesIO_T::Array{<:Real,2}  )
     T,N = size(uBndParNodesIO_T)
     outBndPar_T = zeros(uBndParNodesIO_T)
     for t = 1:T
@@ -126,7 +126,7 @@ function uBndPar2bndPar_T(Model::GasNetModelDirW1, uBndParNodesIO_T::Array{<:Rea
 end
 #Gas Filter Functions
 
-function scalingMatGas(Model::GasNetModelDirW1,expMat::Array{<:Real,2},I_tm1::Array{<:Real,2})
+function scalingMatGas(Model::SdErgmDirW1,expMat::Array{<:Real,2},I_tm1::Array{<:Real,2})
     "Return the matrix required for the scaling of the score, given the expected
      matrix and the Scaling matrix at previous time. "
     if uppercase(Model.scoreScalingType) == "FISHER-EWMA"
@@ -144,7 +144,7 @@ function scalingMatGas(Model::GasNetModelDirW1,expMat::Array{<:Real,2},I_tm1::Ar
     return scaling
  end
 
-function scaleScoreGas(Model::GasNetModelDirW1,  ftotIO_t::Array{<:Real,1},fBndTot_t::Array{<:Real,1},gradIO_t::Array{<:Real,1}, expfIO_t::Array{<:Real,1},exp_Mat_t::Array{<:Real,2},
+function scaleScoreGas(Model::SdErgmDirW1,  ftotIO_t::Array{<:Real,1},fBndTot_t::Array{<:Real,1},gradIO_t::Array{<:Real,1}, expfIO_t::Array{<:Real,1},exp_Mat_t::Array{<:Real,2},
                         indMin::Int64,  WgasIO::Array{<:Real,1},BgasIO::Array{<:Real,1},AgasIO::Array{<:Real,1},strIO_t::Array{<:Real,1},
                         exp_strIO_t::Array{<:Real,1},t::Int; I_tm1::Array{<:Real,2} = zeros(exp_Mat_t))
     "Return the rescaled score according to the scalingtype of the model"
@@ -232,7 +232,7 @@ function scaleScoreGas(Model::GasNetModelDirW1,  ftotIO_t::Array{<:Real,1},fBndT
 
     return s_t, I_tm1
  end
-function predict_score_driven_par( Model::GasNetModelDirW1,strIO_t::Array{<:Real,1},
+function predict_score_driven_par( Model::SdErgmDirW1,strIO_t::Array{<:Real,1},
                          ftotIO_t::Array{<:Real,1},I_tm1::Array{<:Real,2},indTvNodesIO::BitArray{1},
                          WgasIO::Array{<:Real,1},BgasIO::Array{<:Real,1},AgasIO::Array{<:Real,1},t::Int ;
                          fBndTot_t::Array{<:Real,1} =  StaticNets.uBndPar2bndPar(StaModType(Model),ftotIO_t) )
@@ -305,7 +305,7 @@ function predict_score_driven_par( Model::GasNetModelDirW1,strIO_t::Array{<:Real
      ftotIO_tp1 = ftotIO_t
      return ftotIO_tp1,loglike_t,I_tm1
   end
-function score_driven_filter_or_dgp( Model::GasNetModelDirW1,
+function score_driven_filter_or_dgp( Model::SdErgmDirW1,
                                 vResGasPar::Array{<:Real,1} ;
                                 obsT::Array{<:Real,2}=Model.obsT,
                                 groupsInds:: Array{Array{Int,1},1}=Model.groupsInds,
@@ -383,20 +383,20 @@ function score_driven_filter_or_dgp( Model::GasNetModelDirW1,
         return fIOVecT, loglike
     end
     end
-score_driven_filter_or_dgp(Model::GasNetModelDirW1) = score_driven_filter_or_dgp(Model,array2VecGasPar(Model,Model.Par))
-sampl(Mod::GasNetModelDirW1,T::Int)=( N = length(Mod.groupsInds[1]) ;
+score_driven_filter_or_dgp(Model::SdErgmDirW1) = score_driven_filter_or_dgp(Model,array2VecGasPar(Model,Model.Par))
+sampl(Mod::SdErgmDirW1,T::Int)=( N = length(Mod.groupsInds[1]) ;
                                         tmpTuple = score_driven_filter_or_dgp(Mod,[Mod.Par[1];Mod.Par[2];Mod.Par[3]];  dgpTN = (T,N) );
                                         degsIO_T = [sumSq(tmpTuple[1],3) sumSq(tmpTuple[1],2)];
-                                        (GasNetModelDirBin1(degsIO_T,Mod.Par,Mod.groupsInds,Mod.scoreScalingType),tmpTuple[1],tmpTuple[2]) )
+                                        (SdErgmDirBin1(degsIO_T,Mod.Par,Mod.groupsInds,Mod.scoreScalingType),tmpTuple[1],tmpTuple[2]) )
 
 # # Estimation
 #
-function estSingSnap(Model::GasNetModelDirW1, str_t::Array{<:Real,1}; groupsInds = Model.groupsInds, targetErr::Real=targetErrValDynNets)
+function estSingSnap(Model::SdErgmDirW1, str_t::Array{<:Real,1}; groupsInds = Model.groupsInds, targetErr::Real=targetErrValDynNets)
     hatBndPar,~,~ = StaticNets.estimate(StaModType(Model); strIO = str_t ,groupsInds = groupsInds[1], targetErr =  targetErr)
     hatUbndPar = StaticNets.bndPar2uBndPar(StaModType(Model),hatBndPar)
     return hatUbndPar
  end
-function estimateSnapSeq(Model::GasNetModelDirW1; strT::Array{<:Real,2}=Model.obsT,
+function estimateSnapSeq(Model::SdErgmDirW1; strT::Array{<:Real,2}=Model.obsT,
                      groupsInds = Model.groupsInds,targetErr::Real=targetErrValDynNets,print_t = false)
     T,N2 = size(Model.obsT);N = round(Int,N2/2)
     NGW = length(unique(groupsInds[1]))
@@ -411,7 +411,7 @@ function estimateSnapSeq(Model::GasNetModelDirW1; strT::Array{<:Real,2}=Model.ob
     return UnParT
  end
 
-function estimate(Model::GasNetModelDirW1;start_values = [zeros(Real,10),zeros(Real,3),zeros(Real,3) ],
+function estimate(Model::SdErgmDirW1;start_values = [zeros(Real,10),zeros(Real,3),zeros(Real,3) ],
                     targeting = false, meanEstSS::Array{Float64,1} = zeros(1) )
     T,N2 = size(Model.obsT);N = round(Int,N2/2)
     groupsInds = Model.groupsInds

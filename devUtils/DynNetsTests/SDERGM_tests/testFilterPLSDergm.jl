@@ -58,9 +58,9 @@ figure()
  subplot(2,2,4); plot(1:T,parDgpT[2,:],"k",1:T,estParSS_T[2,:],"c")
  #cor(stats_T')
 
- estParStatic,convFlag,UM , ftot_0= estimate(GasNetModelDirBinGlobalPseudo(changeStats_T,testGasPar,trues(2),"");UM = [0;0],indTvPar = falses(Nterms))
+ estParStatic,convFlag,UM , ftot_0= estimate(SdErgmDirBinGlobalPseudo(changeStats_T,testGasPar,trues(2),"");UM = [0;0],indTvPar = falses(Nterms))
  constParVec = zeros(sum(!indTvPar)); for i=1:sum(.!indTvPar) constParVec[i] = estParStatic[.!indTvPar][i][1]; end
- grad_T,s_T,I_T = gasScoreSeries(GasNetModelDirBinGlobalPseudo(changeStats_T,testGasPar,trues(2),""),constParVec)
+ grad_T,s_T,I_T = gasScoreSeries(SdErgmDirBinGlobalPseudo(changeStats_T,testGasPar,trues(2),""),constParVec)
 
 
  # run one auxiliary regression for each parameters
@@ -92,7 +92,7 @@ figure()
 #   B,A = 0.9, 0.02
 #   testGasPar = [[-1.45],[um*(1-B),B ,A]]
 #   indTvPar = trues(2);indTvPar[1] = false
-#   testModel = DynNets.GasNetModelDirBinGlobalPseudo(changeStats_T,testGasPar,trues(1),"")
+#   testModel = DynNets.SdErgmDirBinGlobalPseudo(changeStats_T,testGasPar,trues(1),"")
 # #
 #   gasFiltPar , pseudolike = DynNets.score_driven_filter_or_dgp(testModel,testGasPar[2],indTvPar;
 #     obsT = changeStats_T,vConstPar = testGasPar[1])
@@ -118,9 +118,9 @@ figure()
 um = 0.5
  B,A = 0.9, 0.02
  testGasPar = [[-1.45],[um*(1-B),B ,A]]
- model = GasNetModelDirBinGlobalPseudo(changeStats_T,testGasPar,trues(2),"")
+ model = SdErgmDirBinGlobalPseudo(changeStats_T,testGasPar,trues(2),"")
  indTvPar = BitArray([true,true])
- estPar,convFlag,UM , ftot_0 = estimate(GasNetModelDirBinGlobalPseudo(changeStats_T,testGasPar,trues(2),"");UM = [0;0],indTvPar = indTvPar,
+ estPar,convFlag,UM , ftot_0 = estimate(SdErgmDirBinGlobalPseudo(changeStats_T,testGasPar,trues(2),"");UM = [0;0],indTvPar = indTvPar,
                                                                         indTargPar = indTvPar)#  falses(indTvPar))##
  gasParVec = zeros(sum(indTvPar)*3); for i=0:(sum(indTvPar)-1) gasParVec[1+3i : 3(i+1)] = estPar[indTvPar][i+1]; end
  constParVec = zeros(sum(!indTvPar)); for i=1:sum(.!indTvPar) constParVec[i] = estPar[.!indTvPar][i][1]; end
@@ -128,7 +128,7 @@ um = 0.5
 
 #gasParVec[1] = -0.101
  #gasParVec[3] = 0.01
-gasFiltPar , pseudolike = score_driven_filter_or_dgp(GasNetModelDirBinGlobalPseudo(changeStats_T,testGasPar,trues(2),""),gasParVec,indTvPar;
+gasFiltPar , pseudolike = score_driven_filter_or_dgp(SdErgmDirBinGlobalPseudo(changeStats_T,testGasPar,trues(2),""),gasParVec,indTvPar;
                           vConstPar = constParVec,ftot_0= ftot_0)
 
  close()

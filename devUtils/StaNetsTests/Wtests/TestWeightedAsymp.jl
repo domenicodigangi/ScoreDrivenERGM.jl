@@ -30,7 +30,7 @@ plot(strIO_T')
 lstrI = log.(strIO_T[1:N,t])
 lstrO = log.(strIO_T[1+N:end,t])
 1./exp(-lstrI)
-expMat = expMatrix(fooNetModelDirW1Afixed,-[lstrI;lstrO],trues(N,N))
+expMat = expMatrix(fooErgmDirW1Afixed,-[lstrI;lstrO],trues(N,N))
 
 prevDegEqFlag = (degsIO_T[:,1:end-1] .== degsIO_T[:,2:end])
 prevDegEqFlagI,prevDegEqFlagO = prevDegEqFlag[1:N,:], prevDegEqFlag[1+1N:end,:]
@@ -51,7 +51,7 @@ tmp = (sum(prevDegEqFlagI,1) - N).*(sum(prevDegEqFlagO,1) - N)/(N*(N-1))
 plot(tmp')
 allFitSS =  StaticNetsW.estimate( StaticNetsW.SnapSeqNetDirW1(strIO_T./10000000); identPost = false,identIter= true )
 dgpPar = meanSq(allFitSS,2 )
-expDgpMat = StaticNets.expMatrix(fooNetModelDirBin1,dgpPar)
+expDgpMat = StaticNets.expMatrix(fooErgmDirBin1,dgpPar)
 dgpDegs = [sumSq(expDgpMat,2); sumSq(expDgpMat,1)]
 N = length(matA_T[1,:,1])
 Nsample = 1000
@@ -59,7 +59,7 @@ L = maximum(abs.(dgpPar))
 C = L
 errBnd = C*sqrt(log(N)/N )
 prob = 1 - C/(N^2)
-dgpMod = NetModelDirBin1(zeros(dgpDegs),dgpPar,Int.(1:N))
+dgpMod = ErgmDirBin1(zeros(dgpDegs),dgpPar,Int.(1:N))
 findmax(dgpDegs)
 #sample the dgp model
 sam = sampl(dgpMod,Nsample )
@@ -71,8 +71,8 @@ estDegs = zeros(2N,Nsample)
 #estimate
 for i=1:Nsample
     println(i)
-    estPar[:,i]= estimate(fooNetModelDirBin1;degIO =degsIO_Sample[:,i])[1]
-    expEstMat = StaticNets.expMatrix(fooNetModelDirBin1,estPar[:,i])
+    estPar[:,i]= estimate(fooErgmDirBin1;degIO =degsIO_Sample[:,i])[1]
+    expEstMat = StaticNets.expMatrix(fooErgmDirBin1,estPar[:,i])
     estDegs[:,i] = [sumSq(expEstMat,2); sumSq(expEstMat,1)]
 
 end

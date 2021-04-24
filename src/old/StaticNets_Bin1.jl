@@ -1,16 +1,16 @@
 
 ##------------------ Binary UNDIRECTED Networks
 
-struct  NetModelBin1 <: NetModelBin #Bin stands for (Binary) Adjacency matrix
+struct  ErgmBin1 <: ErgmBin #Bin stands for (Binary) Adjacency matrix
     "ERGM with degrees as statistics and possibility to have groups of nodes
     associated with the same parameter. "
     obs:: Array{<:Real,1} #[degrees]
     Par::Array{<:Real,1} # One parameter per Node  UNRestricted
     groupsInds::Array{<:Real,1} #The index of the groups each node belongs to
  end
-fooNetModelBin1 =  NetModelBin1(ones(3),zeros(3),ones(3))
-NetModelBin1(deg:: Array{<:Real,1}) =  NetModelBin1(deg,zeros(length(deg)),Vector(1:length(deg)) )
-function DegSeq2graphDegSeq(Model::NetModelBin1,Seq::Array{<:Real,1})
+fooErgmBin1 =  ErgmBin1(ones(3),zeros(3),ones(3))
+ErgmBin1(deg:: Array{<:Real,1}) =  ErgmBin1(deg,zeros(length(deg)),Vector(1:length(deg)) )
+function DegSeq2graphDegSeq(Model::ErgmBin1,Seq::Array{<:Real,1})
     "From a degree sequence find another one that is certanly graphicable.
      I choose a naive way to ensure graphicability.
       The matrix associated with the starting degree sequence is very hubs oriented
@@ -41,13 +41,13 @@ function DegSeq2graphDegSeq(Model::NetModelBin1,Seq::Array{<:Real,1})
     graphSeq= sumSq(mat,2)
     return graphSeq
  end
-function linSpacedPar(Model::NetModelBin1,Nnodes::Int; Ngroups = Nnodes,deltaN::Int=3,graphConstr = true)
+function linSpacedPar(Model::ErgmBin1,Nnodes::Int; Ngroups = Nnodes,deltaN::Int=3,graphConstr = true)
     "Generate an equally spaced degree sequence. Ensure that it is graphicable
     and then estimate the parameters "
 
           #generate syntetic degree distributions, equally spaced, and estimate the model
     if graphConstr
-        tmpdegs  = DegSeq2graphDegSeq(fooNetModelBin1, Array{Real,1}(range(1+deltaN,stop=Nnodes - round(0.1*Nnodes)-deltaN, length=Nnodes)))
+        tmpdegs  = DegSeq2graphDegSeq(fooErgmBin1, Array{Real,1}(range(1+deltaN,stop=Nnodes - round(0.1*Nnodes)-deltaN, length=Nnodes)))
     else
         #stima modello a Ngroups fitness costanti con degree dei nodi linearly spaced
         tmpdegs  =   Array{Real,1}(range(deltaN,stop=Nnodes-deltaN, length=Nnodes) )
@@ -55,11 +55,11 @@ function linSpacedPar(Model::NetModelBin1,Nnodes::Int; Ngroups = Nnodes,deltaN::
     end
     #if Nnodes==Ngroups
     groupsInds = distributeAinVecN(Vector(1:Ngroups),Nnodes)
-    out,it,estMod = estimate(NetModelBin1(tmpdegs, zeros(length(tmpdegs)), groupsInds))
+    out,it,estMod = estimate(ErgmBin1(tmpdegs, zeros(length(tmpdegs)), groupsInds))
     #else
     return out,tmpdegs
  end
-function samplSingMatCan(Model::NetModelBin1,expMat::Array{<:Real,2})
+function samplSingMatCan(Model::ErgmBin1,expMat::Array{<:Real,2})
     """
     Being p a matrix of entries in [0,1], samples one bernoulli r.v. for eache matrix element
     """
@@ -75,21 +75,21 @@ function samplSingMatCan(Model::NetModelBin1,expMat::Array{<:Real,2})
     return out
  end
 
-function expMatrix2(Model::NetModelBin1,par::Array{<:Real,1})
+function expMatrix2(Model::ErgmBin1,par::Array{<:Real,1})
     "Given the vector of model parameters, return the product matrix(often useful
     in likelihood computation) and the expected matrix"
     parMat = putZeroDiag( exp.(Symmetric(par  .+ par') ))
     expMat = parMat ./ (1 .+ parMat)
     return parMat, expMat
  end
-expMatrix(Model::NetModelBin1,par::Array{<:Real,1}) = expMatrix2(Model,par)[2] # return only the expected matrix given the parameters
-function expValStatsFromMat(Model::NetModelBin1,expMat::Array{<:Real,2}  )
+expMatrix(Model::ErgmBin1,par::Array{<:Real,1}) = expMatrix2(Model,par)[2] # return only the expected matrix given the parameters
+function expValStatsFromMat(Model::ErgmBin1,expMat::Array{<:Real,2}  )
     "Expected value of the statistic for a model, given the expected matrix"
     expDeg = sumSq(expMat,2)
     expValStats = expDeg
     return expValStats
  end
-function firstOrderCond(Model::NetModelBin1;deg::Array{<:Real,1} = Model.obs, par::Array{<:Real,1}=Model.Par, groupsInds::Array{<:Real,1} = Model.groupsInds )
+function firstOrderCond(Model::ErgmBin1;deg::Array{<:Real,1} = Model.obs, par::Array{<:Real,1}=Model.Par, groupsInds::Array{<:Real,1} = Model.groupsInds )
     "Given the model, the degree sequence, the parameters and groups assignements,
     return the First order conditions. Gradient of the loglikelihood, or system
     of differences between expected and observed values of the statistics (either
@@ -117,12 +117,12 @@ function firstOrderCond(Model::NetModelBin1;deg::Array{<:Real,1} = Model.obs, pa
     end
     return foc
  end
-function identify(Model::NetModelBin1,Par::Array{<:Real,1})
+function identify(Model::ErgmBin1,Par::Array{<:Real,1})
     "Given a vector of parameters, return the transformed vector that verifies
     an identification condition. Do not do anything if the model is identified."
     return Par
   end
-function estimate(Model::NetModelBin1; deg::Array{<:Real,1} = Model.obs,
+function estimate(Model::ErgmBin1; deg::Array{<:Real,1} = Model.obs,
             groupsInds = Model.groupsInds, targetErr::Real=targetErrValStaticNets,bigConst = bigConstVal)
     "Given model type, observations of the statistics and groups assignments,
     estimate the parameters."
@@ -150,7 +150,7 @@ function estimate(Model::NetModelBin1; deg::Array{<:Real,1} = Model.obs,
     #analytically solvable case
     if NG==1
         outParVec = unifstartval*ones(NG)
-        outMod = NetModelBin1(Model.obs,outParVec,groupsInds)
+        outMod = ErgmBin1(Model.obs,outParVec,groupsInds)
         i = 0
     else
         par = unifstartval*ones(NG)
@@ -222,11 +222,11 @@ function estimate(Model::NetModelBin1; deg::Array{<:Real,1} = Model.obs,
         parUN = log.(par)
         parUN[par.==0] = -bigConst
         outParVec = parUN
-        outMod = NetModelBin1(Model.obs,outParVec,groupsInds)
+        outMod = ErgmBin1(Model.obs,outParVec,groupsInds)
     end
     return outParVec, i , outMod
  end
-function sampl(Model::NetModelBin1,Nsample::Int;  par::Array{<:Real,1}=Model.Par ,groupsInds = Model.groupsInds)
+function sampl(Model::ErgmBin1,Nsample::Int;  par::Array{<:Real,1}=Model.Par ,groupsInds = Model.groupsInds)
     "Sample a given model."
     nodesPar = par[groupsInds]
     N = length(nodesPar)

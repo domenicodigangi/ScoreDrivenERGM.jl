@@ -1,42 +1,42 @@
-import ..StaticNets:NetModelDirBin0Rec0, ergm_term_string
+import ..StaticNets:ErgmDirBin0Rec0, ergm_term_string
 
-abstract type GasNetModelDirBin0Rec0 <: GasNetModel end
+abstract type SdErgmDirBin0Rec0 <: SdErgm end
 
 
-Base.@kwdef struct  GasNetModelDirBin0Rec0_mle <: GasNetModelDirBin0Rec0
-    staticModel = NetModelDirBin0Rec0()
+Base.@kwdef struct  SdErgmDirBin0Rec0_mle <: SdErgmDirBin0Rec0
+    staticModel = ErgmDirBin0Rec0()
     indTvPar :: BitArray{1} = trues(2) #  what parameters are time varying   ?
     scoreScalingType::String = "HESS_D" # String that specifies the rescaling of the score. For a list of possible choices see function scalingMatGas
     options::SortedDict{Any, Any} = SortedDict()
 end
-export GasNetModelDirBin0Rec0_mle
+export SdErgmDirBin0Rec0_mle
 
 d = SortedDict(["first" => 31, "second" => "val"])
 
 
-function name(x::GasNetModelDirBin0Rec0_mle)  
+function name(x::SdErgmDirBin0Rec0_mle)  
     if isempty(x.options)
         optString = ""
     else
         optString = ", " * reduce(*,["$k = $v, " for (k,v) in x.options])[1:end-2]
     end
 
-    "GasNetModelDirBin0Rec0_mle($(x.indTvPar), scal = $(x.scoreScalingType)$optString)"
+    "SdErgmDirBin0Rec0_mle($(x.indTvPar), scal = $(x.scoreScalingType)$optString)"
 end
 export name
 
 
-Base.string(x::GasNetModelDirBin0Rec0) = name(x::GasNetModelDirBin0Rec0) 
+Base.string(x::SdErgmDirBin0Rec0) = name(x::SdErgmDirBin0Rec0) 
 export string
 
 
-reference_model(model::GasNetModelDirBin0Rec0_mle) = model
+reference_model(model::SdErgmDirBin0Rec0_mle) = model
 
 
 """
 Given the flag of constant parameters, a starting value for their unconditional means (their constant value, for those constant), return a starting point for the optimization
 """
-function starting_point_optim(model::T where T <:GasNetModelDirBin0Rec0, indTvPar, UM; indTargPar =  falses(100))
+function starting_point_optim(model::T where T <:SdErgmDirBin0Rec0, indTvPar, UM; indTargPar =  falses(100))
     
     nTvPar = sum(indTvPar)
     NTargPar = sum(indTargPar)
@@ -78,7 +78,7 @@ end
 Return the matrix required for the scaling of the score, given the expected
     matrix and the Scaling matrix at previous time. 
 """
-function scalingMatGas(model::T where T<: GasNetModelDirBin0Rec0,expMat::Array{<:Real,2},I_tm1::Array{<:Real,2})
+function scalingMatGas(model::T where T<: SdErgmDirBin0Rec0,expMat::Array{<:Real,2},I_tm1::Array{<:Real,2})
     if uppercase(model.scoreScalingType) == ""
         scalingMat = 1 #
     elseif uppercase(model.scoreScalingType) == "FISHER-EWMA"
@@ -97,17 +97,17 @@ function scalingMatGas(model::T where T<: GasNetModelDirBin0Rec0,expMat::Array{<
 end
 
 
-function target_function_t(model::GasNetModelDirBin0Rec0_mle, obs_t, N, f_t)
+function target_function_t(model::SdErgmDirBin0Rec0_mle, obs_t, N, f_t)
 
     L, R, N = obs_t
 
-    ll = StaticNets.logLikelihood( StaticNets.NetModelDirBin0Rec0(), L, R, N, f_t)
+    ll = StaticNets.logLikelihood( StaticNets.ErgmDirBin0Rec0(), L, R, N, f_t)
 
     return ll
 end
 
 
-function target_function_t_grad(model::GasNetModelDirBin0Rec0_mle, obs_t, N, f_t)
+function target_function_t_grad(model::SdErgmDirBin0Rec0_mle, obs_t, N, f_t)
     
     L, R, N = obs_t
     
@@ -126,7 +126,7 @@ function target_function_t_grad(model::GasNetModelDirBin0Rec0_mle, obs_t, N, f_t
 end
 
 
-function target_function_t_hess(model::GasNetModelDirBin0Rec0_mle, obs_t, N, f_t)
+function target_function_t_hess(model::SdErgmDirBin0Rec0_mle, obs_t, N, f_t)
     
     θ, η = f_t
     x = exp(θ)
@@ -145,13 +145,13 @@ function target_function_t_hess(model::GasNetModelDirBin0Rec0_mle, obs_t, N, f_t
 end
 
 
-function target_function_t_fisher(model::GasNetModelDirBin0Rec0_mle, obs_t, N, f_t)
+function target_function_t_fisher(model::SdErgmDirBin0Rec0_mle, obs_t, N, f_t)
     # information equality holds and hessian does not depend on observations, hence taking the expectation does not change the result
     return  - target_function_t_hess(model, obs_t, N, f_t) 
 end
 
 
-function static_estimate(model::GasNetModelDirBin0Rec0_mle, statsT)
+function static_estimate(model::SdErgmDirBin0Rec0_mle, statsT)
     L_mean  = mean([stat[1] for stat in statsT ])
     R_mean  = mean([stat[2] for stat in statsT ])
     N_mean  = mean([stat[3] for stat in statsT ])
@@ -162,17 +162,17 @@ end
 
 
 
-GasNetModelDirBin0Rec0_pmle(;scoreScalingType="FISH_D", options=SortedDict()) = SdErgmPml(staticModel = NetModeErgmPml(ergm_term_string(NetModelDirBin0Rec0()), true), indTvPar = trues(2), scoreScalingType=scoreScalingType, options=options)
-export GasNetModelDirBin0Rec0_pmle
+SdErgmDirBin0Rec0_pmle(;scoreScalingType="FISH_D", options=SortedDict()) = SdErgmPml(staticModel = NetModeErgmPml(ergm_term_string(ErgmDirBin0Rec0()), true), indTvPar = trues(2), scoreScalingType=scoreScalingType, options=options)
+export SdErgmDirBin0Rec0_pmle
 
 
 
 import ..StaticNets:ergm_par_from_mean_vals
 
-alpha_beta_to_theta_eta(α, β, N) = collect(ergm_par_from_mean_vals(NetModelDirBin0Rec0(), α*n_pox_dir_links(N), β*n_pox_dir_links(N), N))
+alpha_beta_to_theta_eta(α, β, N) = collect(ergm_par_from_mean_vals(ErgmDirBin0Rec0(), α*n_pox_dir_links(N), β*n_pox_dir_links(N), N))
 
 
-theta_eta_to_alpha_beta(θ, η, N) =  collect(exp_val_stats(NetModelDirBin0Rec0(), θ, η, N))./n_pox_dir_links(N)
+theta_eta_to_alpha_beta(θ, η, N) =  collect(exp_val_stats(ErgmDirBin0Rec0(), θ, η, N))./n_pox_dir_links(N)
 
 
 
@@ -194,7 +194,7 @@ function beta_min_max_from_alpha_min(minAlpha, N;  minBeta = minAlpha/5 )
 end
 
 
-function sample_time_var_par_from_dgp(model::GasNetModelDirBin0Rec0, dgpType, N, T;  minAlpha = [0.25], maxAlpha = [0.3], nCycles = [2], phaseshift = [0.1], plotFlag=false, phaseAlpha = 0, sigma = [0.01], B = [0.95], A=[0.01], maxAttempts = 5000, indTvPar=trues(number_ergm_par(model)))
+function sample_time_var_par_from_dgp(model::SdErgmDirBin0Rec0, dgpType, N, T;  minAlpha = [0.25], maxAlpha = [0.3], nCycles = [2], phaseshift = [0.1], plotFlag=false, phaseAlpha = 0, sigma = [0.01], B = [0.95], A=[0.01], maxAttempts = 5000, indTvPar=trues(number_ergm_par(model)))
 
     minBeta, maxBeta =  beta_min_max_from_alpha_min(minAlpha[1], N)
 
@@ -277,7 +277,7 @@ function sample_time_var_par_from_dgp(model::GasNetModelDirBin0Rec0, dgpType, N,
 end
 
 
-function list_example_dgp_settings(model::GasNetModelDirBin0Rec0)
+function list_example_dgp_settings(model::SdErgmDirBin0Rec0)
 
     dgpSetARlowlow = (type = "AR", opt = (B =[0.98], sigma = [0.005]))
     
@@ -299,21 +299,21 @@ function list_example_dgp_settings(model::GasNetModelDirBin0Rec0)
 end
 
 
-function sample_mats_sequence(model::GasNetModelDirBin0Rec0, parDgpT::Matrix, N )
+function sample_mats_sequence(model::SdErgmDirBin0Rec0, parDgpT::Matrix, N )
     T = size(parDgpT)[2]
     A_T_dgp = zeros(Int8, N, N, T)
     for t=1:T
-        diadProb = StaticNets.diadProbFromPars(StaticNets.NetModelDirBin0Rec0(), parDgpT[:,t] )
-        A_T_dgp[:,:,t] = StaticNets.samplSingMatCan(StaticNets.NetModelDirBin0Rec0(), diadProb, N)
+        diadProb = StaticNets.diadProbFromPars(StaticNets.ErgmDirBin0Rec0(), parDgpT[:,t] )
+        A_T_dgp[:,:,t] = StaticNets.samplSingMatCan(StaticNets.ErgmDirBin0Rec0(), diadProb, N)
     end
     return A_T_dgp
 end
 
 
-function sample_est_mle_pmle(model::GasNetModelDirBin0Rec0, parDgpT, N, Nsample; plotFlag = true, regimeString="")
+function sample_est_mle_pmle(model::SdErgmDirBin0Rec0, parDgpT, N, Nsample; plotFlag = true, regimeString="")
 
-    model_mle = GasNetModelDirBin0Rec0_mle()
-    model_pmle = GasNetModelDirBin0Rec0_pmle()
+    model_mle = SdErgmDirBin0Rec0_mle()
+    model_pmle = SdErgmDirBin0Rec0_pmle()
 
     T = size(parDgpT)[2]
     indTvPar = trues(2)

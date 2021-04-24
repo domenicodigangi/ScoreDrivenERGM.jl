@@ -1,18 +1,18 @@
 N = 10
 NG = N#5
 
-fooNetModelDirBin1
+fooErgmDirBin1
 deltaN = 3
 
 tmpdegsIO = round.([ Vector(linspace(deltaN,N-1-deltaN,N));Vector(linspace(deltaN,N-1-deltaN,N))])
-tmpdegsIO  =   DegSeq2graphDegSeq(fooNetModelDirBin1,tmpdegsIO)
-linSpacedPar(fooNetModelDirBin1,N; Ngroups = NG, deltaN=deltaN)
+tmpdegsIO  =   DegSeq2graphDegSeq(fooErgmDirBin1,tmpdegsIO)
+linSpacedPar(fooErgmDirBin1,N; Ngroups = NG, deltaN=deltaN)
 ## test graphicability functions
 
 
 ##
 groupsInds = distributeAinVecN(Vector(1:NG),N)
-Mod = NetModelDirBin1(deg,zeros(N),groupsInds)
+Mod = ErgmDirBin1(deg,zeros(N),groupsInds)
 groupsNames = unique(groupsInds)
 NG = length(groupsNames)
 tmpDic = countmap(groupsInds)

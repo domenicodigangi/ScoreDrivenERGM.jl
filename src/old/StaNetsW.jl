@@ -6,11 +6,11 @@ using Utilities,Distributions, StatsBase,Optim, LineSearches, StatsFuns,Roots
 export splitVec, distributeAinB, distributeAinB!, distributeAinVecN,maxLargeVal
 
 ## STATIC NETWORK MODEL
-abstract type NetModel end
-abstract type NetModelW <: NetModel end
-abstract type NetModelBinW <: NetModel end
-abstract type NetModelWcount <: NetModelW end
-abstract type NetModelBin <: NetModel end
+abstract type Ergm end
+abstract type ErgmW <: Ergm end
+abstract type ErgmBinW <: Ergm end
+abstract type ErgmWcount <: ErgmW end
+abstract type ErgmBin <: Ergm end
 
 #constants
 targetErrValStaticNets = 0.005
@@ -23,7 +23,7 @@ minSmallVal = 1e2*eps()
 #-------------------------Count valued Weighted Directed Networks---------------------------------------
 
 
-struct  NetModelDirWCount1 <: NetModelW #Bin stands for (Binary) Adjacency matrix
+struct  ErgmDirWCount1 <: ErgmW #Bin stands for (Binary) Adjacency matrix
     "ERGM for directed networks with geometrically(NB??) distributed count weights,
     in and out strenghts as statistics and possibility to have groups of nodes
     associated with a single pair of in out parameters. "
@@ -32,10 +32,10 @@ struct  NetModelDirWCount1 <: NetModelW #Bin stands for (Binary) Adjacency matri
     groupsInds::Array{<:Real,1} #The index of the groups each node belongs to
     # two parameters per node (In and out)
  end
-fooNetModelDirWCount1 =  NetModelDirWCount1(ones(Int,6),[zeros(6),zeros(1)],ones(3))
-NetModelDirWCount1(StrIO:: Array{<:Int,1}) =  NetModelDirWCount1(StrIO,zeros(length(StrIO[:])),[ones(round(Int,length(StrIO[:])/2)),ones(1)])
+fooErgmDirWCount1 =  ErgmDirWCount1(ones(Int,6),[zeros(6),zeros(1)],ones(3))
+ErgmDirWCount1(StrIO:: Array{<:Int,1}) =  ErgmDirWCount1(StrIO,zeros(length(StrIO[:])),[ones(round(Int,length(StrIO[:])/2)),ones(1)])
 
-function DegSeq2graphDegSeq(Model::NetModelDirWCount1, StrIO::Array{<:Real,1}; Amat::BitArray{2} = trues(round((Int,length(StrIO)/2)),round(Int,(length(StrIO)/2)) ))
+function DegSeq2graphDegSeq(Model::ErgmDirWCount1, StrIO::Array{<:Real,1}; Amat::BitArray{2} = trues(round((Int,length(StrIO)/2)),round(Int,(length(StrIO)/2)) ))
     #From a degree sequence find another one that is certanly graphicable
     #The matrix associated with the starting degree sequence is very hubs oriented
 
@@ -71,7 +71,7 @@ function DegSeq2graphDegSeq(Model::NetModelDirWCount1, StrIO::Array{<:Real,1}; A
 #-------------------------Countinuosly Weighted   Directed Networks Fixed A---------------------------------------
 
 
-struct  NetModelDirW1Afixed <: NetModelW #Bin stands for (Binary) Adjacency matrix
+struct  ErgmDirW1Afixed <: ErgmW #Bin stands for (Binary) Adjacency matrix
     "ERGM for directed networks with Bin A fixed and Gamma distributed
      Continuous  Weights and finite probability of observing zeros.
      Thes statistics are in and out strenghts, and a binary adjacency matrix.  "
@@ -79,10 +79,10 @@ struct  NetModelDirW1Afixed <: NetModelW #Bin stands for (Binary) Adjacency matr
     Amat:: BitArray{2} #Binary Adjacency matrix Amat
     Par::Array{Array{<:Real,1},1} # One parameter per group of nodes  UNRESTRICTED VERSION  [ [InPar;OutPar], ScalePar]
  end
-fooNetModelDirW1Afixed =  NetModelDirW1Afixed(ones(6),trues(3,3),[zeros(6),zeros(1)])
-NetModelDirW1Afixed(StrIO::Array{<:Real,1},Amat::BitArray{2}) =  NetModelDirW1Afixed(StrIO,Amat,[zeros(Float64,length(StrIO[:])), zeros(1)]  )
+fooErgmDirW1Afixed =  ErgmDirW1Afixed(ones(6),trues(3,3),[zeros(6),zeros(1)])
+ErgmDirW1Afixed(StrIO::Array{<:Real,1},Amat::BitArray{2}) =  ErgmDirW1Afixed(StrIO,Amat,[zeros(Float64,length(StrIO[:])), zeros(1)]  )
 
-function DegSeq2graphDegSeq(Model::NetModelDirW1Afixed,StrIO::Array{<:Real,1};Amat::BitArray{2}=Model.Amat)
+function DegSeq2graphDegSeq(Model::ErgmDirW1Afixed,StrIO::Array{<:Real,1};Amat::BitArray{2}=Model.Amat)
     #From a strengths sequence find another one that is certanly graphicable
 
     # pe deg2graph deg posso importare le funzioni in c++ scritte da veraart oppure fare
@@ -97,20 +97,20 @@ function DegSeq2graphDegSeq(Model::NetModelDirW1Afixed,StrIO::Array{<:Real,1};Am
     #display(minContinuousVal)
     StrCountIO = ceil(Int,StrIO./(unitW))
 
-    graphSeq = unitW .* DegSeq2graphDegSeq(fooNetModelDirWCount1,StrCountIO;Amat = Amat)
+    graphSeq = unitW .* DegSeq2graphDegSeq(fooErgmDirWCount1,StrCountIO;Amat = Amat)
     return graphSeq
  end
 
-bndPar2uBndPar(Model::NetModelDirW1Afixed, bndParNodesIO::Array{<:Real,1} ;indMin::Int = -1 ) =
+bndPar2uBndPar(Model::ErgmDirW1Afixed, bndParNodesIO::Array{<:Real,1} ;indMin::Int = -1 ) =
     bndPar2uBndPar(Model, bndParNodesIO ;indMin = indMin)
 
-uBndPar2bndPar(Model::NetModelDirW1Afixed, uBndParNodesIO::Array{<:Real,1} ;indMin::Int = -1 ) =
+uBndPar2bndPar(Model::ErgmDirW1Afixed, uBndParNodesIO::Array{<:Real,1} ;indMin::Int = -1 ) =
     uBndPar2bndPar(Model, uBndParNodesIO ;indMin = indMin)
 
-samplSingMatCan(Model::NetModelDirW1Afixed,expMat::Array{<:Real,2},Amat::BitArray{2};α=1.0::Real) =
-    (expMat[.!Amat] = 0; samplSingMatCan(Model::NetModelDirW1,expMat;α=α) )
+samplSingMatCan(Model::ErgmDirW1Afixed,expMat::Array{<:Real,2},Amat::BitArray{2};α=1.0::Real) =
+    (expMat[.!Amat] = 0; samplSingMatCan(Model::ErgmDirW1,expMat;α=α) )
 
-function expMatrix2(Model::NetModelDirW1Afixed, parNodesIO::Array{<:Real,1},Amat::BitArray{2} ;logalpha = 0.0 )
+function expMatrix2(Model::ErgmDirW1Afixed, parNodesIO::Array{<:Real,1},Amat::BitArray{2} ;logalpha = 0.0 )
     "Given the vector of model parameters (groups), return the product matrix(often useful
     in likelihood computation) and the expected matrix"
     α = exp( logalpha )
@@ -122,13 +122,13 @@ function expMatrix2(Model::NetModelDirW1Afixed, parNodesIO::Array{<:Real,1},Amat
     all(infInd) ?() :( display([squeeze(prod(infInd,2),2) squeeze(prod(infInd,1),1)]); error())
     return parMat,expMat
  end
-expMatrix(Model::NetModelDirW1Afixed, parNodesIO::Array{<:Real,1} ,Amat::BitArray{2};logalpha = 0.0  ) =
+expMatrix(Model::ErgmDirW1Afixed, parNodesIO::Array{<:Real,1} ,Amat::BitArray{2};logalpha = 0.0  ) =
         expMatrix2(Model, parNodesIO,Amat;logalpha = logalpha )[2]# return only the expected matrix given the parameters
-expValStatsFromMat(Model::NetModelDirW1Afixed,expMat::Array{<:Real,2}  ) =
-                        expValStatsFromMat(fooNetModelDirBin1,expMat)
+expValStatsFromMat(Model::ErgmDirW1Afixed,expMat::Array{<:Real,2}  ) =
+                        expValStatsFromMat(fooErgmDirBin1,expMat)
 
-expValStats(Model::NetModelDirW1Afixed, parNodesIO::Array{<:Real,1},Amat::BitArray{2} ) = expValStatsFromMat(Model, expMatrix(Model,parNodesIO ,Amat)) # if only the paramters are given as input
-function firstOrderCond(Model::NetModelDirW1Afixed;strIO::Array{<:Real,1} = Model.obs,parNodesIO::Array{<:Real,1} = Model.Par, Amat::BitArray{2}=Model.Amat )
+expValStats(Model::ErgmDirW1Afixed, parNodesIO::Array{<:Real,1},Amat::BitArray{2} ) = expValStatsFromMat(Model, expMatrix(Model,parNodesIO ,Amat)) # if only the paramters are given as input
+function firstOrderCond(Model::ErgmDirW1Afixed;strIO::Array{<:Real,1} = Model.obs,parNodesIO::Array{<:Real,1} = Model.Par, Amat::BitArray{2}=Model.Amat )
     "Given the model, the strengths sequence, the parameters and Adjacency matrx ,
     return the First order conditions. Gradient of the loglikelihood, or system
     of differences between expected and observed values of the statistics (either
@@ -136,7 +136,7 @@ function firstOrderCond(Model::NetModelDirW1Afixed;strIO::Array{<:Real,1} = Mode
     foc = strIO .-expValStats(Model,parNodesIO,Amat)
     return foc
  end
-function identify!(Model::NetModelDirW1Afixed,parIO::Array{<:Real,1})
+function identify!(Model::ErgmDirW1Afixed,parIO::Array{<:Real,1})
     "Given a vector of parameters, return the transformed vector that verifies
     an identification condition. Do not do anything if the model is identified."
     #set the first of the in parameters equal to one (Restricted version)
@@ -145,7 +145,7 @@ function identify!(Model::NetModelDirW1Afixed,parIO::Array{<:Real,1})
     return parIO
   end
 
-function estimateSlow(Model::NetModelDirW1Afixed; strIO::Array{<:Real,1} = Model.obs,
+function estimateSlow(Model::ErgmDirW1Afixed; strIO::Array{<:Real,1} = Model.obs,
                 Amat::BitArray{2}=falses(10,10) , targetErr  =targetErrValStaticNetsW,bigConst   = bigConstVal,identIter = false,startVals::Array{Float64,1} =zeros(10) )
     "Given model type, observations of the statistics and groups assignments,
     estimate the parameters."
@@ -223,7 +223,7 @@ function estimateSlow(Model::NetModelDirW1Afixed; strIO::Array{<:Real,1} = Model
             end
         end
         parUnIO = ([parI;parO])
-        identIter? parUnIO = identify(fooNetModelDirW1Afixed,parUnIO):()
+        identIter? parUnIO = identify(fooErgmDirW1Afixed,parUnIO):()
         #println(parI)
         err = firstOrderCond(Model; strIO = strIO,parGroupsIO = parUnIO , groupsInds = groupsInds)
         #display(err)
@@ -284,11 +284,11 @@ function estimateSlow(Model::NetModelDirW1Afixed; strIO::Array{<:Real,1} = Model
     parIOout = parIO #.* α
 
     outPar = identify!(Model,parIO)
-    outMod = NetModelDirW1(strIO,[outPar,Model.Par[2]],groupsInds)
+    outMod = ErgmDirW1(strIO,[outPar,Model.Par[2]],groupsInds)
 
     return outPar, i , outMod
  end
-function sampl(Model::NetModelDirW1Afixed,Nsample::Int;  parNodesIO::Array{Array{<:Real,1}}=Model.Par,Amat::BitArray{2}=Model.Amat  )
+function sampl(Model::ErgmDirW1Afixed,Nsample::Int;  parNodesIO::Array{Array{<:Real,1}}=Model.Par,Amat::BitArray{2}=Model.Amat  )
     parNodesIO = [parI[groupsInds];parO[groupsInds]]
     expMat = expMatrix(Model, parNodesIO,Amat)
     N = length(expMat[:,1])
@@ -325,7 +325,7 @@ function estimateIPFMat(strIO::Array{<:Real,1},A::Array{<:Real,2} ; targetErr  =
  #-------------------------Countinuosly Weighted Directed Networks---------------------------------------
 
 
- struct  NetModelDirW1 <: NetModelW #Bin stands for (Binary) Adjacency matrix
+ struct  ErgmDirW1 <: ErgmW #Bin stands for (Binary) Adjacency matrix
      "ERGM for directed networks with Gamma distributed Continuous Weights,
      in and out strenghts as statistics and possibility to have groups of nodes
      associated with a single pair of in out parameters. "
@@ -334,10 +334,10 @@ function estimateIPFMat(strIO::Array{<:Real,1},A::Array{<:Real,2} ; targetErr  =
      groupsInds::Array{Int,1} #The index of the groups each node belongs to
      # two parameters per node (In and out)
   end
- fooNetModelDirW1 =  NetModelDirW1(ones(6),[zeros(6),zeros(1)],ones(3))
- NetModelDirW1(StrIO:: Array{<:Real,1}) =  NetModelDirW1(StrIO,[zeros(Float64,length(StrIO[:])), zeros(1)] ,Int.(1:round(Int,length(StrIO[:])/2))  )
+ fooErgmDirW1 =  ErgmDirW1(ones(6),[zeros(6),zeros(1)],ones(3))
+ ErgmDirW1(StrIO:: Array{<:Real,1}) =  ErgmDirW1(StrIO,[zeros(Float64,length(StrIO[:])), zeros(1)] ,Int.(1:round(Int,length(StrIO[:])/2))  )
 
- function DegSeq2graphDegSeq(Model::NetModelDirW1,StrIO::Array{<:Real,1})
+ function DegSeq2graphDegSeq(Model::ErgmDirW1,StrIO::Array{<:Real,1})
      #From a degree sequence find another one that is certanly graphicable
 
      # pe deg2graph deg posso importare le funzioni in c++ scritte da veraart oppure fare
@@ -351,11 +351,11 @@ function estimateIPFMat(strIO::Array{<:Real,1},A::Array{<:Real,2} ; targetErr  =
      unitW = minContinuousVal/(10N)
      #display(minContinuousVal)
      StrCountIO = ceil(Int,StrIO./(unitW))
-     graphSeq = unitW .* DegSeq2graphDegSeq(fooNetModelDirWCount1,StrCountIO)
+     graphSeq = unitW .* DegSeq2graphDegSeq(fooErgmDirWCount1,StrCountIO)
      return graphSeq
   end
 
- function bndPar2uBndPar(Model::NetModelDirW1, bndParNodesIO::Array{<:Real,1} ;indMin::Int = -1 )
+ function bndPar2uBndPar(Model::ErgmDirW1, bndParNodesIO::Array{<:Real,1} ;indMin::Int = -1 )
      N,bndParI, bndParO = splitVec(bndParNodesIO)
      bndParI[1] == 0 ? () :error()
      uBndParO = log.(bndParO)
@@ -368,7 +368,7 @@ function estimateIPFMat(strIO::Array{<:Real,1},A::Array{<:Real,2} ; targetErr  =
      uBndParIO = [uBndParI;uBndParO]
      return  uBndParIO
   end
- function uBndPar2bndPar(Model::NetModelDirW1, uBndParNodesIO::Array{<:Real,1} ;indMin::Int = -1 )
+ function uBndPar2bndPar(Model::ErgmDirW1, uBndParNodesIO::Array{<:Real,1} ;indMin::Int = -1 )
      N,uBndParI, uBndParO = splitVec(uBndParNodesIO)
      uBndParI[1] == -Inf ? () :error()
      expLambdaO = exp.(uBndParO)
@@ -387,14 +387,14 @@ function estimateIPFMat(strIO::Array{<:Real,1},A::Array{<:Real,2} ; targetErr  =
      bndParIO[indInf] = maxLargeVal
      return  bndParIO
   end
- function linSpacedPar(Model::NetModelDirW1,Nnodes::Int;Ngroups = Nnodes,deltaN::Int=3,graphConstr = true)
+ function linSpacedPar(Model::ErgmDirW1,Nnodes::Int;Ngroups = Nnodes,deltaN::Int=3,graphConstr = true)
      error()
      "for a given static model return a widely spaced sequence of groups parameters"
      N=Nnodes
      #generate syntetic degree distributions, equally spaced, and estimate the model
      tmpdegsIO = round.([ Vector(linspace(deltaN,N-1-deltaN,N));Vector(linspace(deltaN,N-1-deltaN,N))])
      if graphConstr
-         tmpdegsIO  =   DegSeq2graphDegSeq(fooNetModelDirBin1,tmpdegsIO)
+         tmpdegsIO  =   DegSeq2graphDegSeq(fooErgmDirBin1,tmpdegsIO)
      end
 
      if Ngroups>N#if more groups than nodes are required throw an error
@@ -402,10 +402,10 @@ function estimateIPFMat(strIO::Array{<:Real,1},A::Array{<:Real,2} ; targetErr  =
      else
          groupsInds = distributeAinVecN(Vector(1:Ngroups),Nnodes)
      end
-     out,it,estMod = estimate(NetModelDirW1(tmpdegsIO);groupsInds = groupsInds)
+     out,it,estMod = estimate(ErgmDirW1(tmpdegsIO);groupsInds = groupsInds)
      return out,tmpdegsIO
   end
- function samplSingMatCan(Model::NetModelDirW1,expMat::Array{<:Real,2};α=1.0::Real)
+ function samplSingMatCan(Model::ErgmDirW1,expMat::Array{<:Real,2};α=1.0::Real)
      """
      given the expected matrix sample one ranUtilities matrix from the corresponding pdf
      """
@@ -424,7 +424,7 @@ function estimateIPFMat(strIO::Array{<:Real,1},A::Array{<:Real,2} ; targetErr  =
      end
      return out
   end
- function expMatrix2(Model::NetModelDirW1, parNodesIO::Array{<:Real,1} ;logalpha = 0.0 )
+ function expMatrix2(Model::ErgmDirW1, parNodesIO::Array{<:Real,1} ;logalpha = 0.0 )
      "Given the vector of model parameters (groups), return the product matrix(often useful
      in likelihood computation) and the expected matrix"
      α = exp( logalpha )
@@ -435,13 +435,13 @@ function estimateIPFMat(strIO::Array{<:Real,1},A::Array{<:Real,2} ; targetErr  =
      all(infInd) ?() :( display([squeeze(prod(infInd,2),2) squeeze(prod(infInd,1),1)]); error())
      return parMat,expMat
   end
- expMatrix(Model::NetModelDirW1, parNodesIO::Array{<:Real,1} ;logalpha = 0.0  ) =
+ expMatrix(Model::ErgmDirW1, parNodesIO::Array{<:Real,1} ;logalpha = 0.0  ) =
          expMatrix2(Model, parNodesIO;logalpha = logalpha )[2]# return only the expected matrix given the parameters
- expValStatsFromMat(Model::NetModelDirW1,expMat::Array{<:Real,2}  ) =
-                         expValStatsFromMat(fooNetModelDirBin1,expMat)
+ expValStatsFromMat(Model::ErgmDirW1,expMat::Array{<:Real,2}  ) =
+                         expValStatsFromMat(fooErgmDirBin1,expMat)
 
- expValStats(Model::NetModelDirW1, parNodesIO::Array{<:Real,1} ) = expValStatsFromMat(Model, expMatrix(Model,parNodesIO )) # if only the paramters are given as input
- function firstOrderCond(Model::NetModelDirW1;strIO::Array{<:Real,1} = Model.obs,
+ expValStats(Model::ErgmDirW1, parNodesIO::Array{<:Real,1} ) = expValStatsFromMat(Model, expMatrix(Model,parNodesIO )) # if only the paramters are given as input
+ function firstOrderCond(Model::ErgmDirW1;strIO::Array{<:Real,1} = Model.obs,
                      strGroups::Array{<:Real,1} = zeros(4), parGroupsIO::Array{<:Real,1}=Model.Par, groupsInds::Array{<:Real,1} = Model.groupsInds )
      "Given the model, the degree sequence, the parameters and groups assignements,
      return the First order conditions. Gradient of the loglikelihood, or system
@@ -464,7 +464,7 @@ function estimateIPFMat(strIO::Array{<:Real,1},A::Array{<:Real,2} ; targetErr  =
      foc = strGroups .- expGroupsStr
      return foc
   end
- function identify!(Model::NetModelDirW1,parGroupsIO::Array{<:Real,1})
+ function identify!(Model::ErgmDirW1,parGroupsIO::Array{<:Real,1})
      "Given a vector of parameters, return the transformed vector that verifies
      an identification condition. Do not do anything if the model is identified."
      #set the first of the in parameters equal to one (Restricted version)
@@ -473,7 +473,7 @@ function estimateIPFMat(strIO::Array{<:Real,1},A::Array{<:Real,2} ; targetErr  =
      return parIO
    end
 
- function estimate(Model::NetModelDirW1; strIO::Array{<:Real,1} = Model.obs,
+ function estimate(Model::ErgmDirW1; strIO::Array{<:Real,1} = Model.obs,
                      groupsInds = Model.groupsInds, targetErr  =targetErrValStaticNetsW,bigConst   = bigConstVal)
      "Given model type, observations of the statistics and groups assignments,
      estimate the parameters."
@@ -507,7 +507,7 @@ function estimateIPFMat(strIO::Array{<:Real,1},A::Array{<:Real,2} ; targetErr  =
          parI[1] = 0.0
          parO[1] = log(unifstartval)
          outParUN = [ parI; parO ]
-         outMod = NetModelDirW1(Model.obs,outParUN,groupsInds)
+         outMod = ErgmDirW1(Model.obs,outParUN,groupsInds)
          i = 0
      else
          #bigNumber = 1e3./targetErr
@@ -621,11 +621,11 @@ function estimateIPFMat(strIO::Array{<:Real,1},A::Array{<:Real,2} ; targetErr  =
          parIOout = parIO #.* α
 
          outPar = identify!(Model,parIO)
-         outMod = NetModelDirW1(strIO,[outPar,Model.Par[2]],groupsInds)
+         outMod = ErgmDirW1(strIO,[outPar,Model.Par[2]],groupsInds)
      end
      return outPar, i , outMod
   end
- function sampl(Model::NetModelDirW1,Nsample::Int;  parArray::Array{Array{<:Real,1}}=Model.Par, groupsInds = Model.groupsInds )
+ function sampl(Model::ErgmDirW1,Nsample::Int;  parArray::Array{Array{<:Real,1}}=Model.Par, groupsInds = Model.groupsInds )
      parGroupsIO = parArray[1]
      NGcheck,parI,parO = splitVec(parGroupsIO)
      parNodesIO = [parI[groupsInds];parO[groupsInds]]
@@ -642,7 +642,7 @@ function estimateIPFMat(strIO::Array{<:Real,1},A::Array{<:Real,2} ; targetErr  =
 
 #--------------------------- Snapshot sequence functions
 
-function zeroStrParFun(Model::NetModelDirW1Afixed,N::Int;method="SMALL" ,smallProb = 1e-1)
+function zeroStrParFun(Model::ErgmDirW1Afixed,N::Int;method="SMALL" ,smallProb = 1e-1)
     #define a number big enough to play the role of Inf for
     # purposes of sampling N(N-1) bernoulli rvs with prob 1/(1+exp(  bigNumb))
     # prob of sampling degree > 0 (N-1)/(1+exp(bigNumb)) < 1e-6
@@ -663,7 +663,7 @@ function zeroStrParFun(Model::NetModelDirW1Afixed,N::Int;method="SMALL" ,smallPr
     return zeroDegPar
  end
 
-function estimate(model::NetModelDirW1Afixed; strIO::Array{<:Real,1} = Model.obs,
+function estimate(model::ErgmDirW1Afixed; strIO::Array{<:Real,1} = Model.obs,
                 Amat::BitArray{2}=falses(10,10) , targetErr  =0.001,identIter = false)
     ## Write and test a new way to estimate DirW1 extending the iteration of
     # Chatterjee, Diaconis and  Sly to weighted networks
@@ -754,12 +754,12 @@ function estimate(Model::SnapSeqNetDirW1; strIO_T::Array{<:Real,2}=Model.obsT,
    prog = 0
    for t = 1:T
        str_t = strIO_T[:,t]
-       UnPar_t , Niter1,Niter2  = estimate(fooNetModelDirW1Afixed; strIO = str_t ,Amat = falses(10,10), targetErr =  targetErr,identIter=identIter)
-       identPost?UnParT[:,t] = identify!(fooNetModelDirW1Afixed,UnPar_t): UnParT[:,t] = UnPar_t
+       UnPar_t , Niter1,Niter2  = estimate(fooErgmDirW1Afixed; strIO = str_t ,Amat = falses(10,10), targetErr =  targetErr,identIter=identIter)
+       identPost?UnParT[:,t] = identify!(fooErgmDirW1Afixed,UnPar_t): UnParT[:,t] = UnPar_t
         round(t/T,1)>prog? (prog = round(t/T,1);println(prog)):()
         #println((t,Niter1,Niter2))
    end
-   UnParT[strIO_T.==0] = zeroDegParFun(fooNetModelDirW1Afixed,N;method=zeroDegFit )
+   UnParT[strIO_T.==0] = zeroDegParFun(fooErgmDirW1Afixed,N;method=zeroDegFit )
  return UnParT
  end
 
@@ -768,7 +768,7 @@ function estimate(Model::SnapSeqNetDirW1; strIO_T::Array{<:Real,2}=Model.obsT,
     SampleMats =zeros(Float64,Nsample,N,N,T)
     for s=1:Nsample
         for t = 1:T
-            SampleMats[s,:,:,t] = samplSingMatCan(fooNetModelDirW1Afixed,expMatrix(fooNetModelDirW1Afixed,vParUnIO_T[:,t]))
+            SampleMats[s,:,:,t] = samplSingMatCan(fooErgmDirW1Afixed,expMatrix(fooErgmDirW1Afixed,vParUnIO_T[:,t]))
         end
     end
     Nsample == 1 ? (return squeeze(SampleMats,1)):(return SampleMats )

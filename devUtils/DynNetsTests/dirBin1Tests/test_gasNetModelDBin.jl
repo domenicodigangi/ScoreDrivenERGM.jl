@@ -1,7 +1,7 @@
 using Plots, Utilities, ForwardDiff, AverageShiftedHistograms,JLD
 plotly()
 
-Model = fooGasNetModelDirBin1
+Model = fooSdErgmDirBin1
 T = 300
 N=10
 deltaN = 3
@@ -17,7 +17,7 @@ Adgp = 0.1*ones(GBA)
 Wdgp = UMdgp.*(1-Bdgp)
 scoreScal ="FISHER-DIAG"# ""#"FISHER-EWMA"#
 # Test sample
-Mod = GasNetModelDirBin1(ones(2,2),[Wdgp , Bdgp, Adgp],groupsInds,scoreScal)
+Mod = SdErgmDirBin1(ones(2,2),[Wdgp , Bdgp, Adgp],groupsInds,scoreScal)
 Mod,Y_T,Fitness_T = sampl(Mod,T)
 
 
@@ -30,7 +30,7 @@ load_path = save_fold*file_nameStart* "_Bin1_" *file_nameEnd#
 @load(save_path,estSS,estGas,estGasTarg,estSS_1GW,estGas_1GW,AeMidWeekly_T, YeMidWeekly_T ,weekInd,degsIO_T)
 
 N = round(Int,length(degsIO_T[:,1])/2)
-eMidMod = DynNets.GasNetModelDirBin1(degsIO_T,estGas_1GW[1], [Int.(ones(2N)),Int.(ones(1)),Int.(ones(1))],"")
+eMidMod = DynNets.SdErgmDirBin1(degsIO_T,estGas_1GW[1], [Int.(ones(2N)),Int.(ones(1)),Int.(ones(1))],"")
 score_driven_filter_or_dgp(eMidMod,[estGas_1GW[1][1];estGas_1GW[1][2];estGas_1GW[1][3]])
 estSS =  DynNets.estimateSnapSeq(eMidMod1Snap)'
 ## test fisher scoring on data
@@ -83,7 +83,7 @@ plot(tmpAsh)
 ## Test Target Estimate
 
 estOutTarg = estimateTargeting(Mod)
-Mod_estTarg = GasNetModel1(Mod.obsT,estOutTarg[1],groupsInd,scoreScal)
+Mod_estTarg = SdErgm1(Mod.obsT,estOutTarg[1],groupsInd,scoreScal)
 
 vresParTarg = [Mod_estTarg.Par[1];Mod_estTarg.Par[2];Mod_estTarg.Par[3]]
 Fitness_T_estTarg, tmp = score_driven_filter_or_dgp( Mod, vresParTarg)
@@ -95,7 +95,7 @@ plot(ppar,pdegs,layout = (2,1),legend=:none,size = (1200,600))
 ## Test estimate
 
 estOut = estimate(Mod)
-Mod_est = GasNetModel1(Mod.obsT,estOut[1],groupsInds,scoreScal)
+Mod_est = SdErgm1(Mod.obsT,estOut[1],groupsInds,scoreScal)
 
 vresPar = [Mod_est.Par[1];Mod_est.Par[2];Mod_est.Par[3]]
 Fitness_T_est, tmp = score_driven_filter_or_dgp( Mod, vresPar)
@@ -181,7 +181,7 @@ Fitness_Tfil ,like= score_driven_filter_or_dgp( Mod,vResGasPar)
 # GBA = 1
 # GW = 2N#20
 #
-# UMdgp = identify!(fooGasNetModelDBin1, [linSpacedFitnesses(N,mode = "UNDIRECTED");linSpacedFitnesses(N;mode = "UNDIRECTED")] )
+# UMdgp = identify!(fooSdErgmDBin1, [linSpacedFitnesses(N,mode = "UNDIRECTED");linSpacedFitnesses(N;mode = "UNDIRECTED")] )
 #
 # Bdgp = 0.9*ones(GBA)
 # Adgp = 0.2*ones(GBA)
@@ -192,7 +192,7 @@ Fitness_Tfil ,like= score_driven_filter_or_dgp( Mod,vResGasPar)
 #
 # ##
 #
-# Mod= GasNetModelDBin1(ones(2,2),[Wdgp , Bdgp, Adgp],groupsInd)
+# Mod= SdErgmDBin1(ones(2,2),[Wdgp , Bdgp, Adgp],groupsInd)
 # Mod,Y_T,Fitness_T = sampl(Mod,T)
 # degs_T = Mod.obsT
 #
@@ -224,7 +224,7 @@ Fitness_Tfil ,like= score_driven_filter_or_dgp( Mod,vResGasPar)
 # estimate(Mod)
 #
 #
-# # Mod2 = GasNetModelDBin1(degs_T[1:2,:])
+# # Mod2 = SdErgmDBin1(degs_T[1:2,:])
 # # Fitness_T_snap = estSnapSeq(Mod2;degsIOT = repmat(Array{Int,1}(1:10)',2,1))
 # #
 # # plot(Fitness_T_snap')

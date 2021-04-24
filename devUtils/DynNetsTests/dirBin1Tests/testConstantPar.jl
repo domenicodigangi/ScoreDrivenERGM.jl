@@ -64,8 +64,8 @@ N2,T = size(degsIO_T[:,1:Ttrain]);N = round(Int,N2/2)
 # autocorrelation wrt constant parameters model
  close()
   groupsInds = [Int.(1:2N),Int.(ones(2N))];
-  modGasDirBin1 = DynNets.GasNetModelDirBin1(degsIO_T[:,1:Ttrain],[ zeros(2N) ,0.9  * ones(1), 0.01 * ones(1)],groupsInds,"FISHER-DIAG")
-    statPar,~ = StaticNets.estimate((fooGasNetModelDirBin1); degIO = meanSq(degsIO_T[:,1:Ttrain],2) )
+  modGasDirBin1 = DynNets.SdErgmDirBin1(degsIO_T[:,1:Ttrain],[ zeros(2N) ,0.9  * ones(1), 0.01 * ones(1)],groupsInds,"FISHER-DIAG")
+    statPar,~ = StaticNets.estimate((fooSdErgmDirBin1); degIO = meanSq(degsIO_T[:,1:Ttrain],2) )
     xOrder = 1:2N #maximum(degsIO_T[:,1:Ttrain],2) - minimum(degsIO_T[:,1:Ttrain],2)# mean(degsIO_T[:,1:Ttrain],2)#
     # Score autocorrelation for static parameters estimates
     sIO_T,gradIO_T = gasScoreSeries(modGasDirBin1,repmat(statPar,1,T);obsT = degsIO_T[:,1:Ttrain])
@@ -127,7 +127,7 @@ maxNgroups = 1
     end
     grid()
  gasParEstOnTrain = gasPar
-    GasforeFit,~ = DynNets.score_driven_filter_or_dgp( DynNets.GasNetModelDirBin1(degsIO_T),
+    GasforeFit,~ = DynNets.score_driven_filter_or_dgp( DynNets.SdErgmDirBin1(degsIO_T),
             [gasParEstOnTrain[1];gasParEstOnTrain[2];gasParEstOnTrain[3]];groupsInds=groupsInds)
             gasforeFitStore[Nclusters] = Float64.(GasforeFit)
             gasParStore[Nclusters] = gasPar
@@ -144,7 +144,7 @@ maxNgroups = 1
 #     plot(xOrder[indTvClust],tmp[indTvClust],".r")
 #     plot(xOrder[.!indTvClust],tmp[.!indTvClust],".b")
 #     gasParEstOnTrain = gasPar
-#     GasforeFit,~ = DynNets.score_driven_filter_or_dgp( DynNets.GasNetModelDirBin1(degsIO_T),
+#     GasforeFit,~ = DynNets.score_driven_filter_or_dgp( DynNets.SdErgmDirBin1(degsIO_T),
 #             [gasParEstOnTrain[1];gasParEstOnTrain[2];gasParEstOnTrain[3]];groupsInds=groupsInds)
 #             gasforeFit = Float64.(GasforeFit)
 
@@ -167,7 +167,7 @@ using GLM
 degsIO_T = repmat(degsIO_T_store,20,1)
  N = round(Int,length(degsIO_T[:,1])/2)
  groupsInds = [Int.(1:2N),Int.(ones(2N))];
- modGasDirBin1 = DynNets.GasNetModelDirBin1(degsIO_T[:,1:Ttrain],[ zeros(2N) ,0.9  * ones(1), 0.01 * ones(1)],groupsInds,"FISHER-DIAG")
+ modGasDirBin1 = DynNets.SdErgmDirBin1(degsIO_T[:,1:Ttrain],[ zeros(2N) ,0.9  * ones(1), 0.01 * ones(1)],groupsInds,"FISHER-DIAG")
  @time estimateTarg(modGasDirBin1)
 
 

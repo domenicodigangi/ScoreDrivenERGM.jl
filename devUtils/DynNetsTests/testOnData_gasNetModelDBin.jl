@@ -10,7 +10,7 @@ halfPeriod? periodEndStr =  "2012_03_12_to_2015_02_27.jld": periodEndStr =  "200
 N2,T = size(degsIO_T);N = round(Int,N2/2)
 
 ## Binary  estimates tests
-eMidMod = DynNets.GasNetModelDirBin1(degsIO_T)
+eMidMod = DynNets.SdErgmDirBin1(degsIO_T)
 SSest = estimateSnapSeq(eMidMod)
 ## test targeted estimate
 @time estimateTarg(eMidMod;SSest = SSest)

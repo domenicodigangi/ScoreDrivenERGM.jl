@@ -10,8 +10,8 @@ using ..ErgmRcall
 
 
 ## STATIC NETWORK MODEL
-abstract type NetModel end
-abstract type NetModelDirBin <: NetModel end
+abstract type Ergm end
+abstract type ErgmDirBin <: Ergm end
 
 #constants
 targetErrValStaticNets = 1e-2
@@ -31,21 +31,21 @@ export minSmallVal
 
 # region StaticNet interface (work in progress)
 
-name(x::T where T <: NetModel) = error("to be defined")
+name(x::T where T <: Ergm) = error("to be defined")
 
-type_of_obs(model::T where T <: NetModel) = error("to be defined")
+type_of_obs(model::T where T <: Ergm) = error("to be defined")
 
-obj_fun(model::T where T <: NetModel, obs_t, N, par) = error("to be defined")
+obj_fun(model::T where T <: Ergm, obs_t, N, par) = error("to be defined")
 
-grad_obj_fun(model::T where T <: NetModel, obs_t, N, par) = error("to be defined")
+grad_obj_fun(model::T where T <: Ergm, obs_t, N, par) = error("to be defined")
 
-hessian_obj_fun(model::T where T <: NetModel, obs_t, N, par) = error("to be defined")
+hessian_obj_fun(model::T where T <: Ergm, obs_t, N, par) = error("to be defined")
 
-fisher_info_obj_fun(model::T where T <: NetModel, obs_t, N, par) = error("to be defined")
+fisher_info_obj_fun(model::T where T <: Ergm, obs_t, N, par) = error("to be defined")
 
-estimate(model::T where T <: NetModel, A) = error("to be defined")
+estimate(model::T where T <: Ergm, A) = error("to be defined")
 
-estimate_sequence(model::T where T <: NetModel, obsT) = error("to be defined")
+estimate_sequence(model::T where T <: Ergm, obsT) = error("to be defined")
 
 
 #endregion

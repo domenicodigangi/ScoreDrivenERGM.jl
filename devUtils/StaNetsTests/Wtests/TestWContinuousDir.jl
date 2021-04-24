@@ -10,7 +10,7 @@ sum(StrI) == sum(StrO)?():error()
 Amat = trues(N,N);for n=1:N Amat[n,n] =false end
 Amat[StrI.==0,:] = false
 Amat[:,StrO.==0] = false
-dgpStrIO  =   DegSeq2graphDegSeq(fooNetModelDirW1Afixed,tmpStrIO;Amat=Amat)
+dgpStrIO  =   DegSeq2graphDegSeq(fooErgmDirW1Afixed,tmpStrIO;Amat=Amat)
 N, StrI,StrO = splitVec(dgpStrIO)
 sum(StrI) == sum(StrO)?():error()
 Amat = trues(N,N);for n=1:N Amat[n,n] =false end
@@ -19,7 +19,7 @@ Amat[:,StrO.==0] = false
 
 
 
-Mod =  NetModelDirW1Afixed(dgpStrIO,Amat)
+Mod =  ErgmDirW1Afixed(dgpStrIO,Amat)
 S = 0.5*sum(dgpStrIO,1)[1]
 Par = ones(2N) * 0.5 /(S/(N^2-N))
 expMatTest=expMatrix(Mod,Par,Amat)
@@ -79,8 +79,8 @@ using JLD2
 #
 # for t = 1:T
 #     Y = YeMidWeekly_T[:,:,t]
-#     strIOeMid_t = expValStatsFromMat(fooNetModelDirW1,Y)
-#     eMidMod = NetModelDirW1(strIOeMid_t)
+#     strIOeMid_t = expValStatsFromMat(fooErgmDirW1,Y)
+#     eMidMod = ErgmDirW1(strIOeMid_t)
 #
 #     estPar,estIt,estMod = estimate(eMidMod)
 #     estPar_T[t,:] = estPar
@@ -138,14 +138,14 @@ plot(pdegsI,pdegsO,layout = (2,1),legend=:none,size = (1200,600))
 
 ## test IPF function
 YallT = meanSq(YeMidWeekly_T,3)
-strIOallT = expValStatsFromMat(fooNetModelDirW1,YallT)
+strIOallT = expValStatsFromMat(fooErgmDirW1,YallT)
 #zeros on the diagonal
 A =  ones(N,N); for i=1:N A[i,i] = 0 end  #Int.(YallT .> 0) #
 nnzInds = strIO.!=0
 ~,nnzIndsI,nnzIndsO = splitVec(nnzInds)
 
-@time  ipfMat,~ = estimateIPFMat(fooNetModelDirW1,strIOallT,A)
-eMidMod = NetModelDirW1(strIOallT)
+@time  ipfMat,~ = estimateIPFMat(fooErgmDirW1,strIOallT,A)
+eMidMod = ErgmDirW1(strIOallT)
 @time  estPar,estIt,estMod = estimate(eMidMod)
 gammaMat = expMatrix(estMod,estPar)
 

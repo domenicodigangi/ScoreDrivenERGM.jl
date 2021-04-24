@@ -3,7 +3,7 @@ SDERGM DGP  for density and GWESP as described in the paper
 Heavily relying on R to smaple from the ERGM at each t, and it assumes that
 all needed packages have been loaded in R via Rcall
 """
-function sdergmDGPpaper_Rcall( Model::DynNets.GasNetModelDirBinGlobalPseudo, indTvPar::BitArray{1},T::Int,N::Int;vConstPar ::Array{<:Real,1} = zeros(Real,2),
+function sdergmDGPpaper_Rcall( Model::DynNets.SdErgmDirBinGlobalPseudo, indTvPar::BitArray{1},T::Int,N::Int;vConstPar ::Array{<:Real,1} = zeros(Real,2),
                                 ftot_0::Array{<:Real,1} = zeros(Real,2),UM = [-3 , 0.05],B_Re  = 0.9, A_Re  = 0.01 )
     indTvPar = trues(2)
     ftot_0 = zeros(Real,2)

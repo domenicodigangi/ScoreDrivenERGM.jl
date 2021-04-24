@@ -5,7 +5,7 @@ using ScoreDrivenERGM
 
 
 
-# test that the GasNetModel interface works for a concrete model<:GasNetModel 
+# test that the SdErgm interface works for a concrete model<:SdErgm 
 
 
 

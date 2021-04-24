@@ -34,7 +34,7 @@ onlyTest = false
      n=1#:Nsample
      @show(n)
       pVals_Nsample[:,n,1],tmpInfo,staticEst[n] =
-         pValStatic_SDERGM( GasNetModelDirBinGlobalPseudo(tmp[:,n],fooGasPar,falses(Nterms),""))
+         pValStatic_SDERGM( SdErgmDirBinGlobalPseudo(tmp[:,n],fooGasPar,falses(Nterms),""))
       @show(tmpInfo)
      if tvParFromTest
          indTvPar =  pVals_Nsample[:,n] .< pValTh
@@ -46,7 +46,7 @@ onlyTest = false
      else
           indTargPar =BitArray([false,false])
      end
-    model = GasNetModelDirBinGlobalPseudo(tmp[:,n],fooGasPar,indTvPar,"")
+    model = SdErgmDirBinGlobalPseudo(tmp[:,n],fooGasPar,indTvPar,"")
 
     if .!onlyTest
     estPar,convFlag[n],UM,startPoint = estimate(model;UM =meanSq(estParSS_T[n,:,:],1),indTvPar = indTvPar, indTargPar = indTargPar)
@@ -62,7 +62,7 @@ onlyTest = false
 
     filtPar_T_Nsample[:,:,n] = gasFiltPar
     pVals_Nsample[:,n,2],tmpInfo,~ =
-       pValStatic_SDERGM( GasNetModelDirBinGlobalPseudo(tmp[:,n],fooGasPar,falses(Nterms),"");estPar = gasFiltPar)
+       pValStatic_SDERGM( SdErgmDirBinGlobalPseudo(tmp[:,n],fooGasPar,falses(Nterms),"");estPar = gasFiltPar)
     #end
  end
  close("all")
@@ -70,9 +70,9 @@ onlyTest = false
 tmp = gasScoreSeries(model,gasFiltPar;matScal=false)
 plot(tmp[1]')
 autocor(Float64.(tmp[1])',[1])
-pValStatic_SDERGM( GasNetModelDirBinGlobalPseudo(tmp[:,n],fooGasPar,falses(Nterms),""))
+pValStatic_SDERGM( SdErgmDirBinGlobalPseudo(tmp[:,n],fooGasPar,falses(Nterms),""))
 
-pValStatic_SDERGM( GasNetModelDirBinGlobalPseudo(tmp[:,n],fooGasPar,falses(Nterms),"");estPar = gasFiltPar)
+pValStatic_SDERGM( SdErgmDirBinGlobalPseudo(tmp[:,n],fooGasPar,falses(Nterms),"");estPar = gasFiltPar)
   # Estimation
 #Plotta info relative ai tests
 for testInt =1:2

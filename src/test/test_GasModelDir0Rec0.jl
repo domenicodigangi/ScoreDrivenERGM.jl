@@ -1,4 +1,4 @@
-# test that the GasNetModel interface works for a concrete model<:GasNetModel 
+# test that the SdErgm interface works for a concrete model<:SdErgm 
 
 using Pkg
 Pkg.activate(".") 
@@ -14,11 +14,11 @@ using Statistics
 using StatsBase
 using DataStructures
 
-# model = DynNets.GasNetModelDirBin0Rec0_pmle("HESS_D")
-model = DynNets.GasNetModelDirBin0Rec0_pmle(scoreScalingType ="FISH_D")
-model_mle = DynNets.GasNetModelDirBin0Rec0_mle(scoreScalingType="FISH_D")
+# model = DynNets.SdErgmDirBin0Rec0_pmle("HESS_D")
+model = DynNets.SdErgmDirBin0Rec0_pmle(scoreScalingType ="FISH_D")
+model_mle = DynNets.SdErgmDirBin0Rec0_mle(scoreScalingType="FISH_D")
 model_2 = model_mle
-# model_3 =  DynNets.GasNetModelDirBin0Rec0_pmle(scoreScalingType="FISH_D", options = SortedDict("Firth" => true))
+# model_3 =  DynNets.SdErgmDirBin0Rec0_pmle(scoreScalingType="FISH_D", options = SortedDict("Firth" => true))
 
 
 
@@ -141,7 +141,7 @@ distribFilteredSD, filtCovHatSample,  _, errFlagSample = DynNets.distrib_filtere
 
  
 # @time begin 
-#     obsT, vEstSdResPar, ftot_0, fVecT_filt, confBandsFiltPar, confBandsPar, errFlag = DynNets.estimate_filter_and_conf_bands(DynNets.GasNetModelDirBin0Rec0_pmle("FISH_D"), A_T, parDgpT=parDgpT, quantileVals, plotFlag=true);    
+#     obsT, vEstSdResPar, ftot_0, fVecT_filt, confBandsFiltPar, confBandsPar, errFlag = DynNets.estimate_filter_and_conf_bands(DynNets.SdErgmDirBin0Rec0_pmle("FISH_D"), A_T, parDgpT=parDgpT, quantileVals, plotFlag=true);    
 #     resFish = (;obsT, vEstSdResPar, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0)
 # end
 

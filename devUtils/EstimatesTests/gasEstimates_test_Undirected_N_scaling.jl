@@ -21,12 +21,12 @@ GWvalStore  = Array{Array{Int,1},1}(N_Nind)
 
 
 @everywhere function loopEval(T,N,simParVec, useStartVal,groupsindTsDgp,scoreRescType,GBAest,GWest,groupsindTsEst)
-    Model2Sample = DynNets.GasNetModel1(ones(T,N),simParVec,
+    Model2Sample = DynNets.SdErgm1(ones(T,N),simParVec,
                                                 groupsindTsDgp,scoreRescType)
     Model2Sample,Y_T,Fitness_T  =  DynNets.sampl(Model2Sample,T)
     sampleDegsT = squeeze(sum(Y_T,2),2)
 
-    Model2Est =  DynNets.GasNetModel1(sampleDegsT,[zeros(GWest),zeros(GBAest),zeros(GBAest)],
+    Model2Est =  DynNets.SdErgm1(sampleDegsT,[zeros(GWest),zeros(GBAest),zeros(GBAest)],
                                                 groupsindTsEst,scoreRescType)
     #estimate
     useStartVal ?   start_val = simParVec : start_val = zeros(3,3)
@@ -63,7 +63,7 @@ groupsindTsEst = [[distributeAinVecN(Array{Int}(1:GWest),N)];
 
 
 #Initialize the variable to store
-realUm = DynNets.linSpacedPar(DynNets.fooGasNetModel1, N;NgroupsW = GW )[1]
+realUm = DynNets.linSpacedPar(DynNets.fooSdErgm1, N;NgroupsW = GW )[1]
 sim_B = Array(linspace(0.4,0.9,GBAdgp+1)[2:end]) #
 sim_A = Array(linspace(0.02,0.2,GBAdgp+1)[2:end]) #
 sim_W = realUm.*(1-sim_B[groupsindTsDgp[2]])

@@ -22,7 +22,7 @@ ErgmRcall.clean_start_RCall()
 ergmTermsString = "edges +  mutual"
 R"""options(warn=-1) """
 
-model = StaticNets.NetModelDirBin0Rec0()
+model = StaticNets.ErgmDirBin0Rec0()
 
 
 ##-------------------- Test and COmpare MLE and MPLE estimates

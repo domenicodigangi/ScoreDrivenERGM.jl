@@ -18,7 +18,7 @@ N=30
 T =100
 
 ## Sample SD gdp
-model_mle = fooGasNetModelDirBin0Rec0_mle
+model_mle = fooSdErgmDirBin0Rec0_mle
 indTvPar = trues(2)
 B0=0.95
 A0 = 0.01
@@ -57,7 +57,7 @@ ax[2].set_ylim([η_0 - 5, η_0 + 5])
 
 
 ## estimate SD
-model_mple = fooGasNetModelDirBin0Rec0_pmle
+model_mple = fooSdErgmDirBin0Rec0_pmle
 
 indTargPar = indTvPar
 fVecT_dgp , A_T_dgp, sVecT_dgp = score_driven_filter_or_dgp( model_mle,  vResGasPar_0, indTvPar; dgpNT = (N,T))

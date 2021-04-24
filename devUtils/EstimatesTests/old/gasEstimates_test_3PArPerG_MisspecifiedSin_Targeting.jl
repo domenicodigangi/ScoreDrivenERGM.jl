@@ -29,9 +29,9 @@ est_flag = falses(N_est)
 tmpdegsT = ones(10,N)
 
 #ridefinizioni che servono per allocare
-tmpModelEst =  DynNets.GasNetModel1(tmpdegsT,[zeros(GWest),zeros(GBAest),zeros(GBAest)],
+tmpModelEst =  DynNets.SdErgm1(tmpdegsT,[zeros(GWest),zeros(GBAest),zeros(GBAest)],
                                     groupsIndsEst)
-# tmpModelDgp =  DynNets.GasNetModel1_UmBAgr(tmpdegsT,[zeros(GWdgp),zeros(GBAdgp),zeros(GBAdgp)],
+# tmpModelDgp =  DynNets.SdErgm1_UmBAgr(tmpdegsT,[zeros(GWdgp),zeros(GBAdgp),zeros(GBAdgp)],
 #                                     groupsIndsDgp)
 # tmpModelDgp.Par[1] = ones(GWdgp);tmpModelDgp.Par[2]  = ones(GBAdgp);tmpModelDgp.Par[3]  = ones(GBAdgp)
 size(tmpModelEst.Par[1])[1]
@@ -74,7 +74,7 @@ est_flag = SharedArray{Bool,2}(N_ind,N_est)
         ParTvDgpTmp[:,:,n] = fit_T
         ObsTmp[:,:,n] = sampleDegsT
 
-        Model2Est =  DynNets.GasNetModel1(sampleDegsT,[N,zeros(GBAest),zeros(GBAest)],
+        Model2Est =  DynNets.SdErgm1(sampleDegsT,[N,zeros(GBAest),zeros(GBAest)],
                                                     groupsIndsEst)
         #estimate
         useStartVal ?   start_val = [sim_W, sim_B, sim_A] : start_val = zeros(3,3)
