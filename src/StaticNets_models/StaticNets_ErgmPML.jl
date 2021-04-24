@@ -14,7 +14,6 @@ NetModeErgmPml(ergmTermsString, isDirected)  = NetModeErgmPml(ergmTermsString, i
 
 name(x::NetModeErgmPml) = "NetModeErgmPml($(x.ergmTermsString))"
 
-
 type_of_obs(model::NetModeErgmPml) =  Array{Float64, 2}
 
 
@@ -24,6 +23,7 @@ end
 
 
 function pseudo_loglikelihood_strauss_ikeda(par, changeStat, response, weights)
+    # @debug "[pseudo_loglikelihood_strauss_ikeda][start][size par=$(size(par)), size changeStat = $(size(changeStat)), size response=$(size(response)), size weights=$(size(weights))]"
     
     H_vec = dropdims(sum(par.*changeStat', dims=1), dims=1)      
 
@@ -39,6 +39,7 @@ function pseudo_loglikelihood_strauss_ikeda(par, changeStat, response, weights)
     # logPVec = log.([response[i] == zero(response[i]) ? Pbar[i] : P[i] for i=1:length(response) ])
 
     # logPTot = sum(logPVec.*weights)
+    # @debug "[pseudo_loglikelihood_strauss_ikeda][end]"
 
     return  logPTot
 end

@@ -12,7 +12,7 @@ export string
 identify(model::GasNetModel,UnPar::Array{<:Real,1}, idType ) = StaticNets.identify(model.staticModel, UnPar; idType = idType)
 
 
-number_ergm_par(model::T where T <:GasNetModel) = length(model.indTvPar)
+number_ergm_par(model::T where T <:GasNetModel) = model.staticModel.nErgmPar
 
 
 type_of_obs(model::GasNetModel) =  StaticNets.type_of_obs(model.staticModel)
@@ -309,7 +309,6 @@ function updatedGasPar( model::T where T<: GasNetModel, obs_t, N, ftot_t::Array{
     
     I_reg = I(size(I_tm1)[1])
 
-    extremeScaledScore = 1e2
 
 
     if model.scoreScalingType =="HESS_D"
@@ -328,6 +327,7 @@ function updatedGasPar( model::T where T<: GasNetModel, obs_t, N, ftot_t::Array{
         s_t = (I_t\grad_tot_t)[indTvPar]
 
     elseif model.scoreScalingType =="FISH_D"
+        extremeScaledScore = 200
         fish_tot_t = target_function_t_fisher(model, obs_t, N, ftot_t)
         I_updt = fish_tot_t
         I_t = I_updt  
@@ -497,7 +497,7 @@ estimate_single_snap_sequence(model::T where T<: GasNetModel, obsT, aggregate=0)
 Estimate the GAS and static parameters
 """
 function estimate(model::T where T<: GasNetModel, N, obsT; indTvPar::BitArray{1}=model.indTvPar, indTargPar::BitArray{1} = falses(length(model.indTvPar)), UM:: Array{<:Real,1} = zeros(2), ftot_0 :: Array{<:Real,1} = zeros(2), vParOptim_0 =zeros(2), shuffleObsInds = zeros(Int, 2), show_trace = false )
-
+    @debug "[estimate][start][indTvPar=$indTvPar, indTargPar=$indTargPar, UM=$UM, ftot_0=$ftot_0, vParOptim_0 = $vParOptim_0, shuffleObsInds=$shuffleObsInds]"
     T = length(obsT);
     nErgmPar = number_ergm_par(model)
     NTvPar = sum(indTvPar)
@@ -621,6 +621,7 @@ function estimate(model::T where T<: GasNetModel, N, obsT; indTvPar::BitArray{1}
     arrayAllParHat = reshape_results(vecAllParGasHat)
     conv_flag =  Optim.converged(optim_out2)
    
+     @debug "[estimate][end]"
     return  arrayAllParHat, conv_flag,UM , ftot_0
    
 end
@@ -1012,18 +1013,18 @@ function plot_filtered(model::GasNetModel, N, fVecT_filtIn; lineType = "-", line
 
     parDgpT = parDgpTIn[:, 1:end-offset]
     fVecT_filt = fVecT_filtIn[:, 1+offset:end, :, :]
+    n_ergm_par= number_ergm_par(model)
 
     T = size(fVecT_filt)[2]
 
     if isnothing(fig)
-        fig, ax = subplots(2,1)
+        fig, ax = subplots(n_ergm_par,1)
     end
 
     if parDgpTIn != zeros(2,2)
         plot_filtered(model, N, parDgpTIn; lineType="-", lineColor="k", fig=fig, ax=ax, gridFlag=false, xval=xval)
     end
-    
-    for p in 1:number_ergm_par(model)
+    for p in 1:n_ergm_par
         isnothing(xval) ? x = collect(1:T) : x = xval
         bottom = minimum(fVecT_filt[p,:])
         top = maximum(fVecT_filt[p,:])
@@ -1073,6 +1074,7 @@ function plot_filtered_and_conf_bands(model::GasNetModel, N, fVecT_filtIn, confB
     end
     
     titleString = "$(name(model)), N = $N, T=$(T + offset), \n "
+    titleString = "$(name(model)), \n "
 
     if parDgpTIn != zeros(2,2)
         if sum(confBands1) !=0
@@ -1098,7 +1100,7 @@ function estimate_and_filter(model::GasNetModel, N, obsT; indTvPar = model.indTv
 
     T = length(obsT)   
     
-    estSdResPar, conv_flag, UM_mple, ftot_0 = estimate(model, N, obsT; indTvPar=indTvPar, indTargPar=falses(2), show_trace = show_trace)
+    estSdResPar, conv_flag, UM_mple, ftot_0 = estimate(model, N, obsT; indTvPar=indTvPar, indTargPar=falses(length(indTvPar)), show_trace = show_trace)
 
 
     vEstSdResParAll = array2VecGasPar(model, estSdResPar, indTvPar)
@@ -1112,7 +1114,7 @@ end
     
 
 
-    function conf_bands_given_SD_estimates(model::GasNetModel, N, obsT, vEstSdUnParAll, ftot_0, quantilesVals::Vector{Vector{Float64}}; indTvPar = model.indTvPar, parDgpT=zeros(2,2), plotFlag=false, parUncMethod = "WHITE-MLE", dropOutliers = false, offset = 1,  nSample = 500 , mvSDUnParEstCov = Symmetric(zeros(3,3)), sampleStaticUnPar = zeros(3,3), winsorProp=0, xval=nothing)
+function conf_bands_given_SD_estimates(model::GasNetModel, N, obsT, vEstSdUnParAll, ftot_0, quantilesVals::Vector{Vector{Float64}}; indTvPar = model.indTvPar, parDgpT=zeros(2,2), plotFlag=false, parUncMethod = "WHITE-MLE", dropOutliers = false, offset = 1,  nSample = 500 , mvSDUnParEstCov = Symmetric(zeros(3,3)), sampleStaticUnPar = zeros(3,3), winsorProp=0, xval=nothing)
     
     T = length(obsT)
     nStaticPar = length(indTvPar) + 2*sum(indTvPar)
