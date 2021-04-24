@@ -1,6 +1,17 @@
 module StaticNets
 
-using Distributions, StatsBase,Optim, LineSearches, StatsFuns,Roots,MLBase, Statistics, LinearAlgebra, Random
+using Distributions
+using StatsBase
+using Optim
+using LineSearches
+using StatsFuns
+using Roots
+using MLBase
+using Statistics
+using LinearAlgebra
+using Random
+using Distributed
+
 
 using ..AReg
 using ..Utilities
@@ -53,6 +64,7 @@ estimate_sequence(model::T where T <: Ergm, obsT) = error("to be defined")
 include("./StaticNets_models/StaticNets_DirBin1.jl")
 include("./StaticNets_models/StaticNets_DirBin0Rec0.jl")
 include("./StaticNets_models/StaticNets_ErgmPML.jl")
+include("./StaticNets_models/StaticNets_conf_intervals.jl")
 
 
 end
