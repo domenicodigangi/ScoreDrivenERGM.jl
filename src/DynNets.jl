@@ -38,6 +38,8 @@ const targetErrValDynNets = 0.01
 
 include("./DynNets_models/DynNets_Abstract_SdErgm.jl")
 
+include("./DynNets_models/DynNets_Abstract_SdErgm_SD__based_conf_Intervals.jl")
+
 include("./DynNets_models/DynNets_SdErgmDirBin1.jl")
 
 include("./DynNets_models/DynNets_SdErgmPml.jl")

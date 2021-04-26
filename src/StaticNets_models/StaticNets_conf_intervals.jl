@@ -11,11 +11,12 @@ function get_par_boot_ergm_distrib(model, parEst, N; nSample = 100)
     estimates = zeros(length(parEst), nSample)
 
     Threads.@threads for i in 1:nSample
-        estimates[:,i] = StaticNets.estimate(model,  mat_sample[i])  
+        estimates[:,i] = StaticNets.estimate(model,  mat_sample[:,:,i])  
     end
     return estimates
 end
 export get_par_boot_ergm_distrib
+
 
 
 """
@@ -28,6 +29,7 @@ function get_conf_int_ergm_par_boot(model, N, parEst, quantilesVals; nSample = 1
     confInt = reduce(vcat, [quantile(par_b_dist[p,:], quantilesVals)' for p in 1:model.nErgmPar])
 end
 export get_conf_int_ergm_par_boot
+
 
 is_between(x, interval) = interval[1] <= x <= interval[2]
 

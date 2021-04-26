@@ -56,8 +56,25 @@ fisher_info_obj_fun(model::T where T <: Ergm, obs_t, N, par) = error("to be defi
 
 estimate(model::T where T <: Ergm, A) = error("to be defined")
 
+
 estimate_sequence(model::T where T <: Ergm, obsT) = error("to be defined")
 
+
+sample_ergm(model::T where T <: Ergm, N, parVec, nSample) = error("to be defined")  # return a 3D array N x N x nSample
+
+"""
+return a 4D array N x N x T x nSample 
+"""
+function sample_ergm_sequence(model::T where T <: Ergm, N, parVecSeq_T::Matrix, nSample)
+
+    T = size(parDgpT)[2]
+    A_T_dgp = zeros(Int8, N, N, T, nSample)
+    for t=1:T
+        A_T_dgp[:, :, t, :] = sample_ergm(model, get_N_t(N,t), parVecSeq_T[:, t], nSample)
+    end
+
+    return A_T_dgp
+end
 
 #endregion
 

@@ -30,9 +30,6 @@ Base.string(x::SdErgmDirBin0Rec0) = name(x::SdErgmDirBin0Rec0)
 export string
 
 
-reference_model(model::SdErgmDirBin0Rec0_mle) = model
-
-
 """
 Given the flag of constant parameters, a starting value for their unconditional means (their constant value, for those constant), return a starting point for the optimization
 """
@@ -299,16 +296,6 @@ function list_example_dgp_settings(model::SdErgmDirBin0Rec0)
 end
 
 
-function sample_mats_sequence(model::SdErgmDirBin0Rec0, parDgpT::Matrix, N )
-    T = size(parDgpT)[2]
-    A_T_dgp = zeros(Int8, N, N, T)
-    for t=1:T
-        diadProb = StaticNets.diadProbFromPars(StaticNets.ErgmDirBin0Rec0(), parDgpT[:,t] )
-        A_T_dgp[:,:,t] = StaticNets.samplSingMatCan(StaticNets.ErgmDirBin0Rec0(), diadProb, N)
-    end
-    return A_T_dgp
-end
-
 
 function sample_est_mle_pmle(model::SdErgmDirBin0Rec0, parDgpT, N, Nsample; plotFlag = true, regimeString="")
 
@@ -330,11 +317,12 @@ function sample_est_mle_pmle(model::SdErgmDirBin0Rec0, parDgpT, N, Nsample; plot
     vEstSd_mle = zeros(8, Nsample)
     vEstSd_pmle = zeros(8, Nsample)
 
+    A_T_dgp_S = sample_ergm_sequence(model_mle, N, parDgpT, Nsample)
+
     for n=1:Nsample
         ## sample dgp
-        A_T_dgp = sample_mats_sequence(model_mle, parDgpT, N)
-        stats_T_dgp = [stats_from_mat(model_mle, A_T_dgp[:,:,t]) for t in 1:T ]
-        change_stats_T_dgp = change_stats(model_pmle, A_T_dgp)
+        stats_T_dgp = [stats_from_mat(model_mle, A_T_dgp_S[:,:,t, n]) for t in 1:T ]
+        change_stats_T_dgp = change_stats(model_pmle, A_T_dgp_S)
 
 
         ## estimate SD

@@ -251,4 +251,15 @@ function edge_list_pres(list)
 end
 export edge_list_pres
 
+
+
+"""
+Barrier function to handle single N and sequence of Ns
+"""
+get_N_t(N_seq::AbstractArray, t::Int) = N_seq[t] 
+get_N_t(N::Int, t) = N 
+export get_N_t
+
+
+
 end

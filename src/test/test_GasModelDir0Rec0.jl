@@ -36,7 +36,7 @@ dgpSet = listDgpSettigns.dgpSetARlow
 
 parDgpT = DynNets.sample_time_var_par_from_dgp(model_mle, dgpSet.type, N, T;  dgpSet.opt...)
 
-A_T = DynNets.sample_mats_sequence(model_mle, parDgpT,N)
+A_T = DynNets.sample_ergm_sequence(model_mle, N, parDgpT, 1)[:,:,:,1]
 
     obsT, vEstSdResPar, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0, confBandsFiltPar, confBandsPar, errFlag = DynNets.estimate_filter_and_conf_bands(model, A_T, parDgpT=parDgpT, quantileVals, plotFlag=true);    
     res = (;  obsT, vEstSdResPar, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0, confBandsFiltPar, confBandsPar, errFlag)
