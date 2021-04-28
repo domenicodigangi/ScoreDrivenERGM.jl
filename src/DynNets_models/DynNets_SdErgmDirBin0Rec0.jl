@@ -6,7 +6,7 @@ abstract type SdErgmDirBin0Rec0 <: SdErgm end
 Base.@kwdef struct  SdErgmDirBin0Rec0_mle <: SdErgmDirBin0Rec0
     staticModel = ErgmDirBin0Rec0()
     indTvPar :: BitArray{1} = trues(2) #  what parameters are time varying   ?
-    scoreScalingType::String = "HESS_D" # String that specifies the rescaling of the score. For a list of possible choices see function scalingMatGas
+    scoreScalingType::String = "FISH_D" # String that specifies the rescaling of the score. For a list of possible choices see function scalingMatGas
     options::SortedDict{Any, Any} = SortedDict()
 end
 export SdErgmDirBin0Rec0_mle

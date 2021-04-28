@@ -23,7 +23,7 @@ stats_from_mat(model::SdErgm, A ::Matrix{<:Real}) = StaticNets.stats_from_mat(mo
 """
 Model to use for utilities and eventually fast sampling. The main use is to point pmle models to their mle counterpart, which can be used for sampling or for comparison purposes
 """
-reference_model(model::SdErgmPml) = model
+reference_model(model::SdErgm) = model
 
 
 function seq_of_obs_from_seq_of_mats(model::T where T <:SdErgm, AT_in)
@@ -389,7 +389,9 @@ function score_driven_filter( model::T where T<: SdErgm, N, obsT, vResGasPar::Ar
 
 
     fVecT[:,1] = ftot_0
-    fVecT[.!indTvPar,1] = vConstPar
+    if sum(.!indTvPar) >0
+        fVecT[.!indTvPar,1] = vConstPar
+    end
 
     ftot_tp1 = zeros(nErgmPar)
     for t=1:T
@@ -498,12 +500,15 @@ estimate_single_snap_sequence(model::T where T<: SdErgm, obsT, aggregate=0) = St
 Estimate the GAS and static parameters
 """
 function estimate(model::T where T<: SdErgm, N, obsT; indTvPar::BitArray{1}=model.indTvPar, indTargPar::BitArray{1} = falses(length(model.indTvPar)), UM:: Array{<:Real,1} = zeros(2), ftot_0 :: Array{<:Real,1} = zeros(2), vParOptim_0 =zeros(2), shuffleObsInds = zeros(Int, 2), show_trace = false )
-    @debug "[estimate][start][indTvPar=$indTvPar, indTargPar=$indTargPar, UM=$UM, ftot_0=$ftot_0, vParOptim_0 = $vParOptim_0, shuffleObsInds=$shuffleObsInds]"
+    @debug "[estimate][start][indTvPar=$indTvPar, indTargPar=$indTargPar, UM=$UM, ftot_0=$ftot_0, vParOptim_0 = $vParOptim_0, shuffleObsInds=$shuffleObsInds, model.options = $(model.options)]"
+
     T = length(obsT);
     nErgmPar = number_ergm_par(model)
     NTvPar = sum(indTvPar)
     NTargPar = sum(indTargPar)
     Logging.@debug( "[estimate][Estimating N = $N , T=$T]")
+
+  
 
     # UM is a vector with target values for dynamical parameters
     # if not given as input use the static estimates
@@ -533,14 +538,12 @@ function estimate(model::T where T<: SdErgm, N, obsT; indTvPar::BitArray{1}=mode
   
 
     #define the objective function for the optimization
-    shuffleObsFlag = !(sum(shuffleObsInds)  .== 0)
-    if shuffleObsFlag
-        length(shuffleObsInds) == T ? () : error("wrong lenght of shuffling indices")
-    end
-
-    if shuffleObsFlag 
-
-        function objfunGasShuffle(vecUnPar::Array{<:Real,1})# a function of the groups parameters
+  
+    if !(sum(shuffleObsInds)  .== 0)
+       # was observations shuffing required ?  (used for explorative analysis on non-parametric bootstrap)
+        length(shuffleObsInds) == T ? () : error("wrong lenght of shuffling indices")       
+        #shuffled obsrvations loglikelihood
+        function objfunSdOptShuffled(vecUnPar::Array{<:Real,1})
 
             vecReSDPar,vecConstPar = divideCompleteRestrictPar(vecUnPar)
 
@@ -551,11 +554,10 @@ function estimate(model::T where T<: SdErgm, N, obsT; indTvPar::BitArray{1}=mode
                 return - sum(logLikeVecT[shuffleObsInds])
         end
    
-        ADobjfunGas = TwiceDifferentiable(objfunGasShuffle, vParOptim_0; autodiff = :forward);
+        ADobjfunSdOpt = TwiceDifferentiable(objfunSdOptShuffled, vParOptim_0; autodiff = :forward);
     else
-        function objfunGas(vecUnPar::Array{<:Real,1})# a function of the groups parameters
-
-            # vecReSDPar,vecConstPar = divideCompleteRestrictPar(vecUnPar)
+        # standard log likelihood
+        function objfunSdOpt(vecUnPar::Array{<:Real,1})
 
             vecUnSDPar, vecConstPar = divide_SD_par_from_const(model, indTvPar, vecUnPar)
 
@@ -567,35 +569,52 @@ function estimate(model::T where T<: SdErgm, N, obsT; indTvPar::BitArray{1}=mode
 
             return - sum(logLikeVecT)
         end
-
-        ADobjfunGas = TwiceDifferentiable(objfunGas, vParOptim_0; autodiff = :forward);
-
+        ADobjfunSdOpt = TwiceDifferentiable(objfunSdOpt, vParOptim_0; autodiff = :forward);
+        
 
         if haskey(model.options, "Firth")
             if model.options["Firth"]
-
-                @show FiniteDiff.finite_difference_hessian(objfunGas, vParOptim_0)
-                function objfunGasFirth(vecUnPar::Array{<:Real,1})
-                    objfunGas(vecUnPar) -  0.5 * LinearAlgebra.logabsdet( FiniteDiff.finite_difference_hessian(objfunGas, vecUnPar))[1]
+                # log likelihood with firth additional term
+                function objfunSdOptFirth(vecUnPar::Array{<:Real,1})
+                    objfunSdOpt(vecUnPar) -  0.5 * LinearAlgebra.logabsdet( FiniteDiff.finite_difference_hessian(objfunSdOpt, vecUnPar))[1]
                 end
+                ADobjfunSdOpt = TwiceDifferentiable(objfunSdOptFirth, vParOptim_0; autodiff = :forward);
+            end        
+        end
+        
+    end
 
-                @show objfunGasFirth(vParOptim_0)
-        
-                ADobjfunGas = TwiceDifferentiable(objfunGasFirth, vParOptim_0; autodiff = :forward);
+    integratedFlag = false
+    if haskey(model.options, "integrated")
+        # should we estimate  an integrated version of the SD filter?
+        if model.options["integrated"]
+            integratedFlag = true
+            vParOptim_0 = ones(Real, NTvPar) * 0.1#vParOptim_0[3:3:end]
+            function objfunSdOptInt(vecUnParIntegrated::Array{<:Real,1})  
+                vecUnPar = zeros(Real, 3*NTvPar)
+                vecUnPar[3:3:end] .= vecUnParIntegrated
+                objfunSdOpt(vecUnPar)
             end
-        
+
+            ADobjfunSdOpt = TwiceDifferentiable(objfunSdOptInt, vParOptim_0; autodiff = :forward);
         end
     end
     
-
-
-
+    
+    
     #Run the optimization
    
     Logging.@debug("[estimate][Starting point for Optim $vParOptim_0]")
     Logging.@debug("[estimate][Starting point for Optim $(restrict_all_par(model, indTvPar, vParOptim_0))]")
-    optim_out2  = optimize(ADobjfunGas, vParOptim_0, algo, optims_opt)
+    optim_out2  = optimize(ADobjfunSdOpt, vParOptim_0, algo, optims_opt)
     outParAllUn = Optim.minimizer(optim_out2)
+    if integratedFlag
+        outParAllUnFull = zeros(3*NTvPar)
+        outParAllUnFull[1:3:end] .= 0
+        outParAllUnFull[2:3:end] .= Inf
+        outParAllUnFull[3:3:end] .= outParAllUn
+        outParAllUn = deepcopy(outParAllUnFull)
+    end
     vecAllParGasHat, vecAllParConstHat = divide_SD_par_from_const(model, indTvPar, restrict_all_par(model, indTvPar, outParAllUn))
 
     Logging.@debug(optim_out2)
@@ -680,10 +699,12 @@ function plot_filtered_and_conf_bands(model::SdErgm, N, fVecT_filtIn, confBands1
     for p in 1:number_ergm_par(model)
         isnothing(xval) ? x = collect(1:T) : x = xval
            for b = indBand
+           @show indBand
             if sum(confBands1) !=0
                 ax[p].fill_between(x, confBands1[p, :, b,1], y2 =confBands1[p,:,b, 2],color =(0.9, 0.2 , 0.2, 0.1), alpha = 0.2*b/nBands  )#, color='b', alpha=.1)
             end
-            if confBands2 != zeros(2,2)
+            if sum(confBands2) != 0
+           @show indBand
                 ax[p].plot(x, confBands2[p, :, b, 1], "-g", alpha = 0.2*b/nBands  )#, color='b', alpha=.1)
                 ax[p].plot(x, confBands2[p,:, b, 2], "-g", alpha = 0.2*b/nBands  )#, color='b', alpha=.1)
             end
@@ -703,7 +724,7 @@ function plot_filtered_and_conf_bands(model::SdErgm, N, fVecT_filtIn, confBands1
             cov1 = 0
         end
 
-        if confBands2 != zeros(2,2)
+        if sum(confBands2) !=0
             cov2 = round(mean(conf_bands_coverage(parDgpTIn, confBands2In; offset=offset)[:,:,indBand]), digits=2)
             titleString = titleString * " $nameConfBand2 = $cov2"
         end
@@ -741,7 +762,7 @@ function simulate_and_estimate_parallel(model::SdErgm, dgpSettings, T, N, nSampl
 
         parDgpT = DynNets.sample_time_var_par_from_dgp(reference_model(model), dgpSettings.type, N, T;  dgpSettings.opt...)
 
-        A_T_dgp = DynNets.sample_ergm_sequence(reference_model(model), N, parDgpT)[:,:,:,1]
+        A_T_dgp = StaticNets.sample_ergm_sequence(reference_model(model).staticModel, N, parDgpT, 1)[:,:,:,1]
 
         obsT = seq_of_obs_from_seq_of_mats(model, A_T_dgp)
 

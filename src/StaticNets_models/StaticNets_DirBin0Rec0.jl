@@ -60,7 +60,7 @@ function sample_ergm(model::ErgmDirBin0Rec0, N, par_vec, nSample)
 
     diadProb = diadProbFromPars(model, [θ_0, η_0])
 
-    A_vec = [samplSingMatCan(model, diadProb, N) for i=1:nSample]
+    A_vec =  reduce((x,y)->cat(x,y,dims=3), [samplSingMatCan(model, diadProb, N) for i=1:nSample])
 
     return A_vec
 end
@@ -134,7 +134,7 @@ function logLikelihood(Model::ErgmDirBin0Rec0, A::Matrix, par)
     return logLikelihood(Model, L, R, N, par)
 end
 
-estimate_sequence(model::ErgmDirBin0Rec0, obsT::Array{Array{T, 1}} where T <: Real) = reduce(hcat, [estimate(model, obsT[t] ) for t in 1:length(obsT)])
+estimate_sequence(model::ErgmDirBin0Rec0, obsT::Array{Array{T, 1},1} where T <: Real) = reduce(hcat, [estimate(model, obsT[t]... ) for t in 1:length(obsT)])
 
 
 estimate_sequence(model::ErgmDirBin0Rec0, AT::Array{T, 3} where T <: Real) = reduce(hcat, [estimate(model, AT[:,:,t]) for t in 1:size(AT)[3]])

@@ -6,7 +6,7 @@ import ..StaticNets:NetModeErgmPml, ErgmDirBin0Rec0
 Base.@kwdef struct  SdErgmPml <: SdErgm
     staticModel::NetModeErgmPml
     indTvPar :: BitArray{1} 
-    scoreScalingType::String = "HESS_D" # String that specifies the rescaling of the score. For a list of possible choices see function scalingMatGas
+    scoreScalingType::String = "FISH_D" # String that specifies the rescaling of the score. For a list of possible choices see function scalingMatGas
     options::SortedDict{Any, Any} = SortedDict()
 end
 export SdErgmPml

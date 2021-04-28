@@ -10,7 +10,7 @@ function get_par_boot_ergm_distrib(model, parEst, N; nSample = 100)
 
     estimates = zeros(length(parEst), nSample)
 
-    Threads.@threads for i in 1:nSample
+   for i in 1:nSample
         estimates[:,i] = StaticNets.estimate(model,  mat_sample[:,:,i])  
     end
     return estimates
@@ -39,7 +39,7 @@ function get_coverage_conf_int_par_boot_ergm(model, N, parDgp, quantilesVals; nS
     # sample from dgp
     matsSample = StaticNets.sample_ergm(model, N, parDgp, nSampleDgp)
 
-    estimates = reduce(hcat,[StaticNets.estimate(model, A) for A in matsSample])
+    estimates = reduce(hcat,[StaticNets.estimate(model, A) for A in eachslice(matsSample, dims=3)])
 
     coverFlags =falses(size(estimates))
 
