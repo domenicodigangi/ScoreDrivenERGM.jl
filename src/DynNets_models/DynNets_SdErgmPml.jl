@@ -81,8 +81,11 @@ end
 function reference_model(model::SdErgmPml) 
     if model.staticModel.ergmTermsString == ergm_term_string(ErgmDirBin0Rec0())
         return SdErgmDirBin0Rec0_mle(scoreScalingType=model.scoreScalingType, indTvPar = model.indTvPar)
-    end
+    else
+        return model
+    end 
 end
+
 
 #region list example models
 model_edge_gwd(decay_par) = DynNets.SdErgmPml(staticModel = StaticNets.NetModeErgmPml("edges + gwidegree(decay = $decay_par, fixed = TRUE, cutoff=10) + gwodegree(decay = $decay_par, fixed = TRUE, cutoff=10)", true), indTvPar = [true, true, true], scoreScalingType="FISH_D")
@@ -97,3 +100,78 @@ model_edge_mutual_gwd(decay_par) = DynNets.SdErgmPml(staticModel = StaticNets.Ne
 
 model_rec_p_star = DynNets.SdErgmPml(staticModel = StaticNets.NetModeErgmPml("edges + mutual ", true), indTvPar = [true, true], scoreScalingType="FISH_D")
 #endregion
+
+
+function sample_time_var_par_from_dgp(model::SdErgmPml, dgpType, N, T; minVals = -Inf * ones(1), maxVals = Inf * ones(1), meanVals = nothing, sigma = [0.01], B = [0.95], A=[0.01], indTvPar=trues(number_ergm_par(model)), maxAttempts = 5000, plotFlag = false)
+
+    
+    @debug "[sample_time_var_par_from_dgp][init][$( (;model, dgpType, N, T, minVals, maxVals)) ]"
+
+    nErgmPar = model.staticModel.nErgmPar
+
+    if isnothing(meanVals)
+        meanVals = ( maxVals .+ minVals )./2
+    end
+
+    parDgpT = zeros(Real,nErgmPar,T)
+
+    if dgpType=="AR"
+        length(sigma) == 1 ? sigmaVec = sigma[1].*ones(nErgmPar) : sigmaVec = sigma
+        length(B) == 1 ? BVec = B[1].*ones(nErgmPar) : BVec = B
+
+        okSampleFlag = false
+        for n=1:maxAttempts        
+
+            for p = 1:nErgmPar 
+                parDgpT[p, :] = dgpAR(meanVals[p], BVec[p], sigmaVec[p], T)
+            end
+
+            if all(parDgpT .< maxVals) & all(parDgpT .> minVals)
+                okSampleFlag = true
+                break
+            end
+        end
+
+        okSampleFlag ? () : error("could not sample a path respecting boundaries last sample = $parDgpT")
+
+    end
+
+    if plotFlag
+     fig, ax = subplots(nErgmPar,1)
+        for p in 1:nErgmPar
+            ax[1,p].plot(parDgpT[p,:], "k")
+        end
+    end
+    
+     @debug "[sample_time_var_par_from_dgp][end]"
+    return parDgpT
+end
+
+
+function list_example_dgp_settings(model::SdErgmPml; out="tuple", minVals = [-3.0, 0], maxVals = [-2.4, 1])
+
+    
+    dgpSetARlow = (type = "AR", opt = (B =[0.98], sigma = [0.01], minVals=minVals, maxVals = maxVals ))
+
+    dgpSetARmed = (type = "AR", opt = (B =[0.98], sigma = [0.05], minVals=minVals, maxVals = maxVals))
+    
+    dgpSetARhigh = (type = "AR", opt = (B =[0.98], sigma = [0.1], minVals=minVals, maxVals = maxVals))
+
+    dgpSetSIN = (type = "SIN", opt = ( nCycles=[1.5], minVals=minVals, maxVals = maxVals))
+
+    dgpSetSDlow = (type = "SD", opt = (B =[0.98], A = [0.01], minVals=minVals, maxVals = maxVals))
+
+    dgpSetSD = (type = "SD", opt = (B =[0.98], A = [0.3], minVals=minVals, maxVals = maxVals))
+    
+    dgpSetSDhigh = (type = "SD", opt = (B =[0.98], A = [3], minVals=minVals, maxVals = maxVals))
+
+    tupleList =  (; dgpSetARlow, dgpSetARmed, dgpSetARhigh, dgpSetSIN, dgpSetSDlow, dgpSetSD, dgpSetSDhigh)
+
+    if out == "tuple"
+        return tupleList
+    elseif out == "dict"
+        d = Dict() 
+        [d[string(dgp)[7:end]] = getfield(tupleList,dgp) for dgp in fieldnames(typeof(tupleList))]
+        return d
+    end
+end

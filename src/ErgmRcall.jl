@@ -1,13 +1,18 @@
-""
-# functions that allow to sample sequences of ergms with different parameters' values from R package ergm
-# and estimate the ergm
-
 module ErgmRcall
+
+
+"""
+Helper functions to call useful functions from R ergm package. 
+For further information on ergm R package, please refer to
+Statnet Development Team (Pavel N. Krivitsky, Mark S. Handcock, David R. Hunter, Carter T. Butts, Chad Klumb, Steven M. Goodreau, and Martina Morris) (2003-2020). statnet: Software tools for the Statistical Modeling of Network Data. URL http://statnet.org
+"""
+ErgmRcall
+
 
 using DataFrames
 using RCall
 using SparseArrays
-
+using Logging
 
 function clean_start_RCall()
     # Clean R enviroment 
@@ -52,54 +57,48 @@ function __init__()
 end
 
 
-function sampleErgmRcall(parDgpT,N,Nsample,formula_ergm_str)
-    """
-    Function that samples from an ergm defined by formula_ergm_str (according to
-    the notation of R package ergm)
-    in order to work it needs RCall.jl insatalled and the packages listed at the
-    beginning of the module installed in R
-    """
+"""
+Sample from a sequence of ergms with possibly different parameters using R package ergm
+"""
+function sample_ergm_RCall_sequence(ergmTermsString, N, parDgpT_in, Nsample, mcmcBurnIn=100000)
+    
+    @debug "[sample_ergm_RCall_sequence][init][$ergmTermsString, N=$N, Nsample=$Nsample, size(parDgpT_in) = $(size(parDgpT_in)), parDgpT_in[:,1] = $(parDgpT_in[:,1]) ]"
 
-    clean_start_RCall()
-    T = size(parDgpT)[2]
+    reval("formula_ergm = net ~ "*ergmTermsString)
+
+    T = size(parDgpT_in)[2]
     # For each t, sample the ERGM with parameters corresponding to the DGP at time t
-    # and run a single snapeshot estimate
-    @rput T; @rput parDgpT;@rput N;@rput Nsample
-
-    reval("formula_ergm = net ~ "*formula_ergm_str)
-
-     #create an empty network, the formula defining ergm, sample the ensemble and
-     # store the sufficient statistics and change statistics in R
-     R"
-     net <- network.initialize(N)
-       sampledMat_T_R =    array(0, dim=c(N,N,T,Nsample))
-       changeStats_T_R = list()
-       stats_T_R = list()
+    parDgpT = Float64.(parDgpT_in)
+    @rput T 
+    @rput parDgpT
+    @rput N
+    @rput Nsample
+    @rput mcmcBurnIn
+    #create an empty network, the formula defining ergm, sample the ensemble and store the sufficient statistics and change statistics in R
+    samplingTime = @elapsed begin 
+    R"
+        net <- network.initialize(N)
+        sampledMat_T_R =    array(0, dim=c(N,N,T,Nsample))
         for(t in 1:T){
             changeStats_t_R = list()
             stats_t_R = list()
-            print(t)
+            # print(t)
             for(n in 1:Nsample){
-                 net <- simulate(formula_ergm, nsim = 1, seed = sample(1:100000000,1), coef = parDgpT[,t],control = control.simulate.formula(MCMC.burnin = 100000))
-                 sampledMat_T_R[,,t,n] <- as.matrix.network( net)
-                 print(c(t,n,parDgpT[,t]))
-                 chStat_t <- ergmMPLE(formula_ergm)
-                 changeStats_t_R[[n]] <- cbind(chStat_t$response, chStat_t$predictor,chStat_t$weights)
-                 stats_t_R[[n]] <- summary(formula_ergm)
-                 }
-                  changeStats_T_R[[t]] <-changeStats_t_R
-                  stats_T_R[[t]] <- stats_t_R
-             }"
-
-
+                net <- simulate(formula_ergm, nsim = 1, seed = sample(1:100000000,1), coef = parDgpT[,t], control = control.simulate.formula(MCMC.burnin = mcmcBurnIn))
+                sampledMat_T_R[,,t,n] <- as.matrix.network( net)
+                }
+            }"
+    end
 
     # import sampled networks in julia
-    sampledMat_T = BitArray( @rget(sampledMat_T_R))
-    changeStats_T = @rget changeStats_T_R;# tmp = Array{Array{Float64,2}}(T); for t=1:T tmp[t] =  changeStats_T[t];end;changeStats_T = tmp
-    stats_T = @rget(stats_T_R); #tmp = zeros(Nterms,T); for t=1:T tmp[:,t] = stats_T[t];end;stats_T = tmp
-    return sampledMat_T, changeStats_T, stats_T
-end
-export sampleErgmRcall
+    sampledMat_T = Int8.(@rget(sampledMat_T_R))
+
+    
+    @debug "[sample_ergm_RCall_sequence][end][samplingTime=$samplingTime]"
+    
+    return sampledMat_T
+    end
+export sample_ergm_RCall_sequence
 
 
 function get_edge_list(A::Matrix) 
@@ -118,7 +117,7 @@ end
 
 
 """
-Function that estimates a sequence of ergm defined by formula_ergm_str (according to the notation of R package ergm)
+Function that estimates a sequence of ergm defined by ergmTermsString (according to the notation of R package ergm)
 """
 function get_one_mle(A::Matrix{T} where T<:Integer, ergmTermsString::String)
     @debug "[estimate_mle_RCall][begin]"
@@ -145,8 +144,6 @@ function get_one_mle(A::Matrix{T} where T<:Integer, ergmTermsString::String)
     return estPar
 end
 export get_one_mle
-
-
 
 
 function get_change_stats(A::Matrix{T} where T<:Integer, ergmTermsString::String)

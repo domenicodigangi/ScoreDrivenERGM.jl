@@ -274,27 +274,6 @@ function sample_time_var_par_from_dgp(model::SdErgmDirBin0Rec0, dgpType, N, T;  
 end
 
 
-function list_example_dgp_settings(model::SdErgmDirBin0Rec0)
-
-    dgpSetARlowlow = (type = "AR", opt = (B =[0.98], sigma = [0.005]))
-    
-    dgpSetARlow = (type = "AR", opt = (B =[0.98], sigma = [0.01]))
-
-    dgpSetARmed = (type = "AR", opt = (B =[0.98], sigma = [0.05]))
-    
-    dgpSetARhigh = (type = "AR", opt = (B =[0.98], sigma = [0.1]))
-
-    dgpSetSIN = (type = "SIN", opt = ( nCycles=[1.5]))
-
-    dgpSetSDlow = (type = "SD", opt = (B =[0.98], A = [0.01]))
-
-    dgpSetSD = (type = "SD", opt = (B =[0.98], A = [0.3]))
-    
-    dgpSetSDhigh = (type = "SD", opt = (B =[0.98], A = [3]))
-
-    return (; dgpSetARlowlow, dgpSetARlow, dgpSetARmed, dgpSetARhigh, dgpSetSIN, dgpSetSDlow, dgpSetSD, dgpSetSDhigh)
-end
-
 
 
 function sample_est_mle_pmle(model::SdErgmDirBin0Rec0, parDgpT, N, Nsample; plotFlag = true, regimeString="")
@@ -367,4 +346,35 @@ function sample_est_mle_pmle(model::SdErgmDirBin0Rec0, parDgpT, N, Nsample; plot
     end
     
     return (; vEstSd_mle, vEstSd_pmle, avg_rmse_mle, avg_rmse_pmle)
+end
+
+
+
+function list_example_dgp_settings(model::T where T <: SdErgmDirBin0Rec0; out="tuple")
+
+    dgpSetARlowlow = (type = "AR", opt = (B =[0.98], sigma = [0.005]))
+    
+    dgpSetARlow = (type = "AR", opt = (B =[0.98], sigma = [0.01]))
+
+    dgpSetARmed = (type = "AR", opt = (B =[0.98], sigma = [0.05]))
+    
+    dgpSetARhigh = (type = "AR", opt = (B =[0.98], sigma = [0.1]))
+
+    dgpSetSIN = (type = "SIN", opt = ( nCycles=[1.5]))
+
+    dgpSetSDlow = (type = "SD", opt = (B =[0.98], A = [0.01]))
+
+    dgpSetSD = (type = "SD", opt = (B =[0.98], A = [0.3]))
+    
+    dgpSetSDhigh = (type = "SD", opt = (B =[0.98], A = [3]))
+
+    tupleList =  (; dgpSetARlowlow, dgpSetARlow, dgpSetARmed, dgpSetARhigh, dgpSetSIN, dgpSetSDlow, dgpSetSD, dgpSetSDhigh)
+
+    if out == "tuple"
+        return tupleList
+    elseif out == "dict"
+        d = Dict() 
+        [d[string(dgp)[7:end]] = getfield(tupleList,dgp) for dgp in fieldnames(typeof(tupleList))]
+        return d
+    end
 end

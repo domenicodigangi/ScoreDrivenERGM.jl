@@ -12,9 +12,17 @@ NetModeErgmPml() = NetModeErgmPml("", false, 0)
 
 NetModeErgmPml(ergmTermsString, isDirected)  = NetModeErgmPml(ergmTermsString, isDirected, 1 + count(i->(i=='+'), ergmTermsString))
 
+
 name(x::NetModeErgmPml) = "NetModeErgmPml($(x.ergmTermsString))"
 
+
 type_of_obs(model::NetModeErgmPml) =  Array{Float64, 2}
+
+
+sample_ergm(model::NetModeErgmPml, N, parVec, nSample) = sample_ergm_RCall_sequence(model.ergmTermsString, N, parVec, nSample)[1][:,:,1,:]
+
+
+sample_ergm_sequence(model::NetModeErgmPml, N, parVecSeq_T::Matrix, nSample) = sample_ergm_RCall_sequence(model.ergmTermsString, N, parVecSeq_T, nSample)
 
 
 function change_stats(model::NetModeErgmPml, A::Matrix)
