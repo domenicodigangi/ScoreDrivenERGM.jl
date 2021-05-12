@@ -19,4 +19,4 @@ URL http://statnet.org
 ## SDERGM is a Work in Progress
 - This repository is an attempt at packaging the code from a research project. It is not a finished package by any means. The dependency on R-ergm, and the total lack of testing,  prevent the release 
   
-- the fitness model is has not been updated to the latest version of the codebase, hence is not currently working. For a working fitness model checkout commits from 2019. I would be glad to update it upon request.
+- the fitness model has not been updated to the latest version of the codebase, hence is not currently working. For a working fitness model checkout commits from 2019. I would be glad to update it upon request. Also a python version of only the fitness model might be released upon request.
