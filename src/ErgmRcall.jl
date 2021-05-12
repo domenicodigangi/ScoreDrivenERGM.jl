@@ -170,12 +170,15 @@ function get_one_mple(A::Matrix{T} where T<:Integer, ergmTermsString::String)
     edge_list = get_edge_list(A)   
     @rput edge_list
     reval("formula_ergm = net ~ "* ergmTermsString)
-    # store the sufficient statistics and change statistics in R
-    R"""
-        net <- network(edge_list)
-        mple_t_R <- ergmMPLE(formula_ergm, output="fit")$coef
-        # print(mple_t_R)
-        """
+
+    with_logger(NullLogger()) do 
+  
+        R"""
+            net <- network(edge_list)
+            mple_t_R <- ergmMPLE(formula_ergm, output="fit")$coef
+            # print(mple_t_R)
+            """
+    end
 
     mple_t = @rget mple_t_R;# tmp = Array{Array{Float64,2}}(T); for 
     return mple_t
@@ -188,15 +191,16 @@ function get_one_mple(changeStats_T::Array{T,2} where T<:Real, ergmTermsString::
     # and run a single snapeshot estimate
     @rput changeStats_T
     reval("formula_ergm = net ~ "* ergmTermsString)
-    # store the sufficient statistics and change statistics in R
-    R"""
-        mple_static_R <- glm(changeStats_T[,1] ~ . -1, data = data.frame(changeStats_T[,c(2:(ncol(changeStats_T)-1))]), weights =changeStats_T[,ncol(changeStats_T)],family="binomial")$coefficients
-        """
-
+    with_logger(NullLogger()) do 
+        R"""
+            mple_static_R <- glm(changeStats_T[,1] ~ . -1, data = data.frame(changeStats_T[,c(2:(ncol(changeStats_T)-1))]), weights =changeStats_T[,ncol(changeStats_T)],family="binomial")$coefficients
+            """
+    end
     mple_static = @rget mple_static_R;# tmp = Array{Array{Float64,2}}(T); for 
 
     return mple_static
 end
+
 
 """ Get a single pmle from change statistics for a sequence of networks""" 
 function get_one_mple(changeStats_T::Array{Array{T,2},1} where T<:Real, ergmTermsString::String)

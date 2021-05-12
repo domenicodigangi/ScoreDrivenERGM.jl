@@ -98,6 +98,8 @@ function simulate(ar::ARp,T::Int=1000)
     end
     return Y_T
 end
+
+
 function simulateAR1(vecPar::Vector{<:Real},sigma::Float64;T::Int=1000)
     #start on the unconditional mean
     μ = vecPar[1]./(1-vecPar[2])
@@ -111,6 +113,20 @@ function simulateAR1(vecPar::Vector{<:Real},sigma::Float64;T::Int=1000)
     end
     return Y_T
 end
+
+
+
+function ar1_variance(x)
+    try 
+        return AReg.fitARp(Float64.(x), 1)[2]
+    catch 
+        return NaN
+    end
+end
+export ar1_variance
+
+
+
 
 
 end

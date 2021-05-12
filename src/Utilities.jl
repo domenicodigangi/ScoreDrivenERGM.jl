@@ -242,7 +242,8 @@ end
 export drop_bad_un_estimates
 
 
- """ return an edge list with nodes indexed starting from 1 to the number of nodes present in the list """
+""" return an edge list with nodes indexed starting from 1 to the number of nodes present in the list """
+
 function edge_list_pres(list)
     pres = sort(unique(reshape(list, :)))
     list_pres =  [findfirst(isequal(n), pres) for n in list]
@@ -251,6 +252,9 @@ function edge_list_pres(list)
 end
 export edge_list_pres
 
+
+unconditional_mean_auto_regr(w, B) = w./(1 .- B)
+export unconditional_mean_auto_regr
 
 
 """
