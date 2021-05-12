@@ -203,7 +203,7 @@ function par_bootstrap_distrib_filtered_par(model::SdErgm, N, obsT, indTvPar, ft
             # Estimate SD static params from SD DGP
             arrayAllParHat, conv_flag,UM, ftot_0 = estimate(model, N, obsTNew; indTvPar=indTvPar, indTargPar=falses(2), ftot_0=ftot_0)
 
-            vResPar = DynNets.array2VecGasPar(model, arrayAllParHat, indTvPar)
+            vResPar = DynNets.array_2_vec_all_par(model, arrayAllParHat, indTvPar)
     
             vUnPar = unrestrict_all_par(model, indTvPar, deepcopy(vResPar))
 
@@ -235,7 +235,7 @@ function non_par_bootstrap_distrib_filtered_par(model::SdErgm, N, obsT, indTvPar
     vEstSdUnParBootDist = SharedArray(zeros(3*sum(model.indTvPar), nBootStrap))
     T = length(obsT)
     @time Threads.@threads for k=1:nBootStrap
-        vEstSdUnParBootDist[:, k] = rand(1:T, T) |> (inds->(inds |> x-> DynNets.estimate(model, N, obsT; indTvPar=indTvPar, ftot_0 = ftot_0, shuffleObsInds = x) |> x-> getindex(x, 1) |> x -> DynNets.array2VecGasPar(model, x, model.indTvPar))) |> x -> DynNets.unrestrict_all_par(model, model.indTvPar, x)
+        vEstSdUnParBootDist[:, k] = rand(1:T, T) |> (inds->(inds |> x-> DynNets.estimate(model, N, obsT; indTvPar=indTvPar, ftot_0 = ftot_0, shuffleObsInds = x) |> x-> getindex(x, 1) |> x -> DynNets.array_2_vec_all_par(model, x, model.indTvPar))) |> x -> DynNets.unrestrict_all_par(model, model.indTvPar, x)
     end
 
     return vEstSdUnParBootDist

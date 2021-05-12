@@ -25,7 +25,7 @@ save_fold = "./data/estimatesTest/asympTest/"
 groupsInds = [Int.(1:2N),Int.(ones(2N))];
  #groupsInds[2][indTvNodes] = 0
 gasPar,~ = estimateTarg(modGasDirBin1;groupsInds = groupsInds)
-tmpPar,~ = score_driven_filter_or_dgp(modGasDirBin1,array2VecGasPar(modGasDirBin1,gasPar),groupsInds=groupsInds)
+tmpPar,~ = score_driven_filter_or_dgp(modGasDirBin1,array_2_vec_all_par(modGasDirBin1,gasPar),groupsInds=groupsInds)
 sIO_T,gradIO_T = gasScoreSeries(modGasDirBin1,tmpPar;obsT = degsIO_T)
     tmp = [autocor(Float64.(sIO_T[i,:]),[1])[1] for i=1:2N]
     plot(tmp[indsTVnodes[indN,s,d]],".r")
@@ -37,7 +37,7 @@ sIO_T,gradIO_T = gasScoreSeries(modGasDirBin1,tmpPar;obsT = degsIO_T)
 groupsInds = [Int.(1:2N),Int.(zeros(2N))];
  groupsInds[2][indTvClust] = 1
 gasPar,~ = estimateTarg(modGasDirBin1;groupsInds = groupsInds)
-tmpPar,~ = score_driven_filter_or_dgp(modGasDirBin1,array2VecGasPar(modGasDirBin1,gasPar),groupsInds = groupsInds)
+tmpPar,~ = score_driven_filter_or_dgp(modGasDirBin1,array_2_vec_all_par(modGasDirBin1,gasPar),groupsInds = groupsInds)
 sIO_T,gradIO_T = gasScoreSeries(modGasDirBin1,tmpPar;obsT = degsIO_T)
     tmp = [autocor(Float64.(sIO_T[i,:]),[1])[1] for i=1:2N]
     plot(tmp[indsTVnodes[indN,s,d]],".r")
@@ -118,7 +118,7 @@ maxNgroups = 1
  figure()
  # Score autocorrelation for all TV parameters
  gasPar,~ = estimateTarg(modGasDirBin1;groupsInds = groupsInds)
-    tmpPar,~ = score_driven_filter_or_dgp(modGasDirBin1,array2VecGasPar(modGasDirBin1,gasPar),groupsInds=groupsInds)
+    tmpPar,~ = score_driven_filter_or_dgp(modGasDirBin1,array_2_vec_all_par(modGasDirBin1,gasPar),groupsInds=groupsInds)
     sIO_T,gradIO_T = gasScoreSeries(modGasDirBin1,tmpPar;obsT = degsIO_T[:,1:Ttrain])
     tmp = [autocor(Float64.(sIO_T[i,:]),[1])[1] for i=1:2N]
     for i in (unique(groupsInds[2]))
@@ -138,7 +138,7 @@ maxNgroups = 1
 # groupsInds = [Int.(1:2N),Int.(ones(2N))];
 #  groupsInds[2][indConstDegs] = 0
 #     gasPar,~ = estimateTarg(modGasDirBin1;groupsInds = groupsInds)
-#     tmpPar,~ = score_driven_filter_or_dgp(modGasDirBin1,array2VecGasPar(modGasDirBin1,gasPar),groupsInds=groupsInds)
+#     tmpPar,~ = score_driven_filter_or_dgp(modGasDirBin1,array_2_vec_all_par(modGasDirBin1,gasPar),groupsInds=groupsInds)
 #     sIO_T,gradIO_T = gasScoreSeries(modGasDirBin1,tmpPar;obsT = degsIO_T[:,1:Ttrain])
 #     tmp = [autocor(Float64.(sIO_T[i,:]),[1])[1] for i=1:2N]
 #     plot(xOrder[indTvClust],tmp[indTvClust],".r")

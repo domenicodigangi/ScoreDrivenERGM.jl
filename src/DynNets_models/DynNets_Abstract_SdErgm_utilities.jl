@@ -97,7 +97,7 @@ function estimate_and_filter(model::SdErgm, N, obsT; indTvPar = model.indTvPar, 
     estSdResPar, conv_flag, UM_mple, ftot_0 = estimate(model, N, obsT; indTvPar=indTvPar, indTargPar=falses(length(indTvPar)), show_trace = show_trace)
 
 
-    vEstSdResParAll = array2VecGasPar(model, estSdResPar, indTvPar)
+    vEstSdResParAll = array_2_vec_all_par(model, estSdResPar, indTvPar)
 
     vEstSdResPar, vConstPar = divide_SD_par_from_const(model, indTvPar,vEstSdResParAll)
 
@@ -114,7 +114,7 @@ function simulate_and_estimate_parallel(model::SdErgm, dgpSettings, T, N, nSampl
         
         Logging.@info("Estimating N = $N , T=$T iter n $(counter[1]), $(DynNets.name(model)), $(dgpSettings)")
 
-        parDgpT = DynNets.sample_time_var_par_from_dgp(reference_model(model), dgpSettings.type, N, T;  dgpSettings.opt...)
+        parDgpT = DynNets.sample_time_var_par_from_dgp(reference_model(model), dgpSettings.type, N, T;  dgpSettings.opt..., maxAttempts=100000)
 
         A_T_dgp = StaticNets.sample_ergm_sequence(reference_model(model).staticModel, N, parDgpT, 1)[:,:,:,1]
 
@@ -148,3 +148,60 @@ function simulate_and_estimate_parallel(model::SdErgm, dgpSettings, T, N, nSampl
 end
 
 
+function average_coverages(res, m; limitSample=nothing, quantilesVals = [ [0.975, 0.025]], winsorProp=0)
+    
+    N = res.N
+    T = res.T
+    nErgmPar = DynNets.number_ergm_par(res.model)
+    nBands = length(quantilesVals)
+
+    if isnothing(limitSample)
+        nSample = res.nSample
+    elseif res.nSample >= limitSample 
+        nSample = limitSample
+    else 
+        error("sample size?")
+    end     
+
+    avgCover = SharedArray(zeros(nErgmPar, 2, nSample))
+    allmvSDUnParEstCovWhite = SharedArray(zeros(3*nErgmPar, 3*nErgmPar,nSample))
+    allConfBandsPar = SharedArray(zeros(nErgmPar, T, nBands, 2, nSample))
+    allConfBandsFiltPar = SharedArray(zeros(nErgmPar, T, nBands, 2, nSample))
+    constInds = SharedArray{Bool}((2, nSample))
+    errInds = SharedArray{Bool}((2, nSample))
+
+    errInds .= true
+
+    count = SharedArray(ones(1))
+    
+    mvSDUnParEstCov = zeros(3,3)
+
+    Threads.@threads for n=1:nSample
+        
+        Logging.@info("Estimating Conf Bands  N = $N , T=$T, $(DynNets.name(res.model)), $(res.dgpSettings) iter n $(count[1]), ")
+        count[1] += 1
+
+        vEstSdUnPar = unrestrict_all_par(res.model, res.model.indTvPar, res.allvEstSdResPar[:,n])
+
+        ~, allConfBandsFiltPar[:,:,:,:,n], allConfBandsPar[:,:,:,:,n], errFlag, allmvSDUnParEstCovWhite[:,:,n], distribFilteredSD = DynNets.conf_bands_given_SD_estimates(res.model, N, res.allObsT[n], vEstSdUnPar, res.allftot_0[:,n], quantilesVals;  parUncMethod = m, mvSDUnParEstCov=mvSDUnParEstCov, winsorProp=winsorProp )
+
+        coverFiltParUnc = DynNets.conf_bands_coverage(res.allParDgpT[:,:,n],   allConfBandsFiltPar[:,:,:,:,n])
+
+        coverParUnc = DynNets.conf_bands_coverage(res.allParDgpT[:,:,n],   allConfBandsPar[:,:,:,:,n])
+
+        constInds[:, n]  .= any(res.allvEstSdResPar[3:3:end,n].<=0.02, dims=1)
+        for indPar in 1:2
+            avgCover[indPar, 1, n] =  mean(coverFiltParUnc[indPar,:,1]) 
+
+            avgCover[indPar, 2, n] =  mean(coverParUnc[indPar,:,1]) 
+        end
+            errInds[:, n]  .= errFlag
+
+        # catch
+        #     Logging.@warn("Error in estimating confidence bands $T, $N, $n")
+        # end
+
+    end
+    return sdata(avgCover), sdata(constInds), sdata(errInds), sdata(allConfBandsFiltPar), sdata(allConfBandsPar), sdata(allmvSDUnParEstCovWhite)
+end
+export average_coverages

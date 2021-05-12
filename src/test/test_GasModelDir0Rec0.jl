@@ -135,7 +135,7 @@ distribFilteredSD, filtCovHatSample,  _, errFlagSample = DynNets.distrib_filtere
 # vEstSdUnParBootDist = SharedArray(zeros(3*sum(model.indTvPar), nBootStrap))
 
 # @time Threads.@threads for k=1:nBootStrap
-#     vEstSdUnParBootDist[:, k] = rand(1:T, T) |> (inds->(inds |> x-> DynNets.estimate(model, N, res.obsT; indTvPar=model.indTvPar, ftot_0 = res.ftot_0, shuffleObsInds = x) |> x-> getindex(x, 1) |> x -> DynNets.array2VecGasPar(model, x, model.indTvPar))) |> x -> DynNets.unrestrict_all_par(model, model.indTvPar, x)
+#     vEstSdUnParBootDist[:, k] = rand(1:T, T) |> (inds->(inds |> x-> DynNets.estimate(model, N, res.obsT; indTvPar=model.indTvPar, ftot_0 = res.ftot_0, shuffleObsInds = x) |> x-> getindex(x, 1) |> x -> DynNets.array_2_vec_all_par(model, x, model.indTvPar))) |> x -> DynNets.unrestrict_all_par(model, model.indTvPar, x)
 # end
 
 

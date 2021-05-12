@@ -306,12 +306,12 @@ function sample_est_mle_pmle(model::SdErgmDirBin0Rec0, parDgpT, N, Nsample; plot
 
         ## estimate SD
         estPar_pmle, conv_flag,UM_mple , ftot_0_mple = estimate(model_pmle, N,  change_stats_T_dgp; indTvPar=indTvPar,indTargPar=indTvPar)
-        vResEstPar_pmle = DynNets.array2VecGasPar(model_pmle, estPar_pmle, indTvPar)
+        vResEstPar_pmle = DynNets.array_2_vec_all_par(model_pmle, estPar_pmle, indTvPar)
         fVecT_filt_p , logLikeVecT, sVecT_filt_p = score_driven_filter( model_pmle, N, obsT, vResEstPar_pmle, indTvPar; change_stats_T_dgp, ftot_0 = ftot_0_mple)
         vEstSd_pmle[:,n] = vcat(vResEstPar_pmle, ftot_0_mple)
 
         estPar_mle, conv_flag,UM_mle , ftot_0_mle = estimate(model_mle, N, stats_T_dgp; indTvPar=indTvPar, indTargPar=indTvPar)
-        vResEstPar_mle = DynNets.array2VecGasPar(model_mle, estPar_mle, indTvPar)
+        vResEstPar_mle = DynNets.array_2_vec_all_par(model_mle, estPar_mle, indTvPar)
         fVecT_filt , logLikeVecT, sVecT_filt = score_driven_filter_or_dgp( model_mle, N, vResEstPar_mle, indTvPar; obsT = stats_T_dgp, ftot_0=ftot_0_mle)
         vEstSd_mle[:,n] = vcat(vResEstPar_mle, ftot_0_mle)
 

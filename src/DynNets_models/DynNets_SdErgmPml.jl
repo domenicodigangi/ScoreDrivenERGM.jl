@@ -18,6 +18,16 @@ SdErgmPml(staticModel::NetModeErgmPml) = SdErgmPml(staticModel=staticModel, indT
 SdErgmPml(ergmTermsString::String, isDirected::Bool) = SdErgmPml(NetModeErgmPml(ergmTermsString, isDirected))
 
 
+function Base.getproperty(x::SdErgmPml, p::Symbol)
+    if p in fieldnames(typeof(x))
+        return Base.getfield(x, p)
+    else
+        return Base.getproperty(x.staticModel, p)
+    end
+end
+
+
+
 function name(x::SdErgmPml) 
     if isempty(x.options)
         optString = ""
@@ -102,7 +112,7 @@ model_rec_p_star = DynNets.SdErgmPml(staticModel = StaticNets.NetModeErgmPml("ed
 #endregion
 
 
-function sample_time_var_par_from_dgp(model::SdErgmPml, dgpType, N, T; minVals = -Inf * ones(1), maxVals = Inf * ones(1), meanVals = nothing, sigma = [0.01], B = [0.95], A=[0.01], indTvPar=trues(number_ergm_par(model)), maxAttempts = 5000, plotFlag = false)
+function sample_time_var_par_from_dgp(model::SdErgmPml, dgpType, N, T; minVals = -Inf * ones(1), maxVals = Inf * ones(1), meanVals = nothing, sigma = [0.01], B = [0.95], A=[0.01], indTvPar=trues(number_ergm_par(model)), maxAttempts = 25000, plotFlag = false)
 
     
     @debug "[sample_time_var_par_from_dgp][init][$( (;model, dgpType, N, T, minVals, maxVals)) ]"

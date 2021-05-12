@@ -73,7 +73,7 @@ function NumberOfGroupsAndABindNodes(Model::SdErgmDirW1,groupsInds::Array{Array{
      indTvNodesIO =   (.!(ABgroupsIndNodesIO .==0))#if at least one group ind is zero then both in and out tv par are constant
      return NGW, GBA, ABgroupsIndNodesIO, indTvNodesIO
  end
-function vec2ArrayGasPar(Model::SdErgmDirW1,VecGasPar::Array{<:Real,1})
+function vec_2_array_all_par(Model::SdErgmDirW1,VecGasPar::Array{<:Real,1})
      groupsInds = Model.groupsInds
      NGW, GBA = NumberOfGroups(Model,groupsInds)
      ArrayGasPar =  [VecGasPar[1:2NGW],ones(GBA).*VecGasPar[2NGW+1:2NGW+GBA],ones(GBA).*VecGasPar[2NGW+GBA+1:2NGW + 2GBA]]
@@ -383,7 +383,7 @@ function score_driven_filter_or_dgp( Model::SdErgmDirW1,
         return fIOVecT, loglike
     end
     end
-score_driven_filter_or_dgp(Model::SdErgmDirW1) = score_driven_filter_or_dgp(Model,array2VecGasPar(Model,Model.Par))
+score_driven_filter_or_dgp(Model::SdErgmDirW1) = score_driven_filter_or_dgp(Model,array_2_vec_all_par(Model,Model.Par))
 sampl(Mod::SdErgmDirW1,T::Int)=( N = length(Mod.groupsInds[1]) ;
                                         tmpTuple = score_driven_filter_or_dgp(Mod,[Mod.Par[1];Mod.Par[2];Mod.Par[3]];  dgpTN = (T,N) );
                                         degsIO_T = [sumSq(tmpTuple[1],3) sumSq(tmpTuple[1],2)];

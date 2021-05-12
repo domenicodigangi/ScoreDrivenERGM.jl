@@ -77,7 +77,7 @@ function setOptionsOptim(Model::SdErgmDirBin1)
        return opt, algo
  end
 
-function array2VecGasPar(Model::SdErgmDirBin1,ArrayGasPar::Array{<:Array{Float64,1},1})
+function array_2_vec_all_par(Model::SdErgmDirBin1,ArrayGasPar::Array{<:Array{Float64,1},1})
          VecGasPar = [ArrayGasPar[1];ArrayGasPar[2];ArrayGasPar[3]]
          return VecGasPar
      end
@@ -101,7 +101,7 @@ function NumberOfGroupsAndABindNodes(Model::SdErgmDirBin1,groupsInds::Array{<:Ar
      indTvNodesIO =   (.!(ABgroupsIndNodesIO .==0))#if at least one group ind is zero then both in and out tv par are constant
      return NGW, GBA, ABgroupsIndNodesIO, indTvNodesIO
   end
-function vec2ArrayGasPar(Model::SdErgmDirBin1,VecGasPar::Array{<:Real,1};groupsInds::Array{<:Array{<:Real,1},1} = Model.groupsInds)
+function vec_2_array_all_par(Model::SdErgmDirBin1,VecGasPar::Array{<:Real,1};groupsInds::Array{<:Array{<:Real,1},1} = Model.groupsInds)
      println(size(VecGasPar))
      NGW, GBA = NumberOfGroups(Model,groupsInds)
      ArrayGasPar =  [VecGasPar[1:NGW],ones(GBA).*VecGasPar[NGW+1:NGW+GBA],ones(GBA).*VecGasPar[NGW+GBA+1:NGW + 2GBA]]
@@ -281,7 +281,7 @@ function score_driven_filter_or_dgp( Model::SdErgmDirBin1,
     end
     end
 
-score_driven_filter_or_dgp(Model::SdErgmDirBin1) = score_driven_filter_or_dgp(Model,array2VecGasPar(Model,Model.Par))
+score_driven_filter_or_dgp(Model::SdErgmDirBin1) = score_driven_filter_or_dgp(Model,array_2_vec_all_par(Model,Model.Par))
 function gasScoreSeries( Model::SdErgmDirBin1,
                                 dynPar_T::Array{<:Real,2};
                                 obsT::Array{<:Real,2}=Model.obsT)
@@ -438,7 +438,7 @@ function estimateTarg(Model::SdErgmDirBin1; SSest::Array{<:Real,2} =zeros(2,2),
     vGasParGroupsHat_Re[(1:NGW)[indTvNodesIO]] = uncMeansIO[indTvNodesIO].*(1 .- outReAB[1:GBA][ABgroupsIndNodesIO[indTvNodesIO]])
     vGasParGroupsHat_Re[1+NGW:end] = outReAB
     #println(vGasParGroupsHat_Re)
-    arrayGasParHat_Re = vec2ArrayGasPar(Model,vGasParGroupsHat_Re;groupsInds = groupsInds )
+    arrayGasParHat_Re = vec_2_array_all_par(Model,vGasParGroupsHat_Re;groupsInds = groupsInds )
     conv_flag =  Optim.converged(optim_out2)
     # println(optim_out2)
     return  arrayGasParHat_Re, conv_flag
@@ -492,7 +492,7 @@ function estimateOld(Model::SdErgmDirBin1;start_values = [zeros(Real,10),zeros(R
     optim_out2  = optimize(ADobjfunGas,vGasParAll0_Un,algo,optims_opt)
     outParAll = Optim.minimizer(optim_out2)
     vGasParGroupsHat_Re = restrictGasPar(Model,outParAll)
-    arrayGasParHat_Re = vec2ArrayGasPar(Model,vGasParGroupsHat_Re )
+    arrayGasParHat_Re = vec_2_array_all_par(Model,vGasParGroupsHat_Re )
     conv_flag = conv_flag1*Optim.converged(optim_out2)
     #println(optim_out2)
     return  arrayGasParHat_Re, conv_flag
@@ -561,7 +561,7 @@ function estimateTargOld(Model::SdErgmDirBin1)
     outParAB = Optim.minimizer(optim_out2)
     outReAB = restrAB(outParAB)
     vGasParGroupsHat_Re = [WGroupsFromB(outReAB[1:GBA]);outReAB]
-    arrayGasParHat_Re = vec2ArrayGasPar(Model,vGasParGroupsHat_Re )
+    arrayGasParHat_Re = vec_2_array_all_par(Model,vGasParGroupsHat_Re )
     conv_flag =  Optim.converged(optim_out2)
     # println(optim_out2)
     return  arrayGasParHat_Re, conv_flag

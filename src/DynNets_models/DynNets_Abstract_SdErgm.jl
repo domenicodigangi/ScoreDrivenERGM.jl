@@ -26,6 +26,9 @@ Model to use for utilities and eventually fast sampling. The main use is to poin
 reference_model(model::SdErgm) = model
 
 
+sample_ergm_sequence(model::SdErgm, N, parVecSeq_T::Matrix, nSample) = StaticNets.sample_ergm_sequence(model.staticModel, N, parVecSeq_T, nSample)
+
+
 function seq_of_obs_from_seq_of_mats(model::T where T <:SdErgm, AT_in)
 
     AT = convert_to_array_of_mats(AT_in)
@@ -44,6 +47,7 @@ function setOptionsOptim(model::T where T<: SdErgm; show_trace = false)
     For the optimization use the Optim package."
     tol = eps()*10
     maxIter = 150
+    call_back = tr -> isnan(tr[end].value) |(!isfinite(tr[end].value))
     opt = Optim.Options(  g_tol = 1e-8,
                      x_tol = tol,
                      x_abstol = tol,
@@ -54,6 +58,7 @@ function setOptionsOptim(model::T where T<: SdErgm; show_trace = false)
                      iterations = maxIter,
                      show_trace = show_trace ,#false,#
                      store_trace = true ,#false,#
+                     callback = call_back,
                      show_every=5)
 
     algo = NewtonTrustRegion(; initial_delta = 0.1,
@@ -67,9 +72,29 @@ function setOptionsOptim(model::T where T<: SdErgm; show_trace = false)
 end
 
 
-function array2VecGasPar(model::SdErgm, ArrayGasPar, indTvPar :: BitArray{1})
-    # optimizations routines need the parameters to be optimized to be in a vector
+"""
+Convert vector conaining both SD and constant parameters into array with one vector of static parameters for each ergm parameter. The vector can have eithre 1 or 3 elements, depending on wether the element is static or dynamical
+"""
+function vec_2_array_all_par(model::SdErgm, VecGasPar::Array{<:Real,1}, indTvPar :: BitArray{1})
+    
+    Npar = length(indTvPar)
+    arrayAllPar = [zeros(Real, 1 + tv*2) for tv in indTvPar]#Array{Array{<:Real,1},1}(undef, Npar)
+    last_i = 1
 
+    for i=1:Npar
+        nStatPerDyn = 1 + 2*indTvPar[i]
+        arrayAllPar[i][:] = VecGasPar[last_i: last_i+nStatPerDyn-1]
+            last_i = last_i + nStatPerDyn
+    end
+    return arrayAllPar
+end
+
+
+"""
+The inverse of vec_2_array_all_par
+"""
+function array_2_vec_all_par(model::SdErgm, ArrayGasPar, indTvPar :: BitArray{1})
+  
         NTvPar = sum(indTvPar)
         Npar = length(indTvPar)
         NgasPar = 2*NTvPar + Npar
@@ -84,20 +109,6 @@ function array2VecGasPar(model::SdErgm, ArrayGasPar, indTvPar :: BitArray{1})
 end
 
 
-function vec2ArrayGasPar(model::SdErgm, VecGasPar::Array{<:Real,1}, indTvPar :: BitArray{1})
-    
-    Npar = length(indTvPar)
-    ArrayGasPar = [zeros(Real, 1 + tv*2) for tv in indTvPar]#Array{Array{<:Real,1},1}(undef, Npar)
-    last_i = 1
-
-    for i=1:Npar
-        nStatPerDyn = 1 + 2*indTvPar[i]
-        ArrayGasPar[i][:] = VecGasPar[last_i: last_i+nStatPerDyn-1]
-            last_i = last_i + nStatPerDyn
-
-    end
-    return ArrayGasPar
-end
 
 
 """
@@ -499,8 +510,8 @@ estimate_single_snap_sequence(model::T where T<: SdErgm, obsT, aggregate=0) = St
 """
 Estimate the GAS and static parameters
 """
-function estimate(model::T where T<: SdErgm, N, obsT; indTvPar::BitArray{1}=model.indTvPar, indTargPar::BitArray{1} = falses(length(model.indTvPar)), UM:: Array{<:Real,1} = zeros(2), ftot_0 :: Array{<:Real,1} = zeros(2), vParOptim_0 =zeros(2), shuffleObsInds = zeros(Int, 2), show_trace = false )
-    @debug "[estimate][start][indTvPar=$indTvPar, indTargPar=$indTargPar, UM=$UM, ftot_0=$ftot_0, vParOptim_0 = $vParOptim_0, shuffleObsInds=$shuffleObsInds, model.options = $(model.options)]"
+function estimate(model::T where T<: SdErgm, N, obsT; indTvPar::BitArray{1}=model.indTvPar, indTargPar::BitArray{1} = falses(length(model.indTvPar)), initFilterMethod :: String = "uncMeans", ftot_0Fixed :: Array{<:Real,1} = zeros(2), nObsFirstEst=5,  vParOptim_0 =zeros(2), shuffleObsInds::Union{Nothing, Vector{<:Int}} = nothing, show_trace = false )
+    @debug "[estimate][start][indTvPar=$indTvPar, indTargPar=$indTargPar, initFilterMethod=$initFilterMethod, ftot_0Fixed = $ftot_0Fixed,  vParOptim_0 = $vParOptim_0, shuffleObsInds=$shuffleObsInds, model.options = $(model.options)]"
 
     T = length(obsT);
     nErgmPar = number_ergm_par(model)
@@ -510,24 +521,10 @@ function estimate(model::T where T<: SdErgm, N, obsT; indTvPar::BitArray{1}=mode
 
   
 
-    # UM is a vector with target values for dynamical parameters
-    # if not given as input use the static estimates
-    if !all( UM.== 0 )
-        if any(indTargPar)
-            error("targeting is not considered in the definition of the objective function. Before using it we need to update the latter")
-        end
-        staticPars = UM 
-    else
-        staticPars = static_estimate(model, obsT)
-    end
-
-    # ftot_0 is a vector with initial values (to be used in the SD iteration)
-    # if not given as input estimate on first observations
-    if prod(ftot_0.== 0 )&(!prod(.!indTvPar))
-        ftot_0 =  static_estimate(model, obsT[1:5])
-    end
 
     optims_opt, algo = setOptionsOptim(model; show_trace = show_trace )
+
+    staticPars = static_estimate(model, obsT)
 
     vParOptim_0_tmp, ARe_min = starting_point_optim(model, indTvPar, staticPars; indTargPar = indTargPar)
 
@@ -536,54 +533,82 @@ function estimate(model::T where T<: SdErgm, N, obsT; indTvPar::BitArray{1}=mode
     end
 
   
+    ftot_0Fun(vecReSDPar, vConstPar) = ftot_0Fixed
+
+    # How should we handle the initialization of SD iteration ? 
+    if initFilterMethod == "uncMean" 
+        if haskey(model.options, "integrated")
+            model.options["integrated"] ? error("Integrated filters cannot use the unconditional mean") : ()
+        end
+        function ftot_0Fun(vecReSDPar, vConstPar) 
+            w = vecReSDPar[1:3:end]
+            B = vecReSDPar[2:3:end]
+
+            # unconditional mean of SD parameters
+            UmSDPar  = unconditional_mean_auto_regr(w, B)
+
+            ftot_0 = zeros(Real, nErgmPar)
+            
+            ftot_0[indTvPar] = UmSDPar 
+            ftot_0[.!indTvPar] = vConstPar 
+            return ftot_0
+        end
+    else
+        if initFilterMethod == "estimateFirstObs" 
+            ftot_0Fixed =  static_estimate(model, obsT[1:nObsFirstEst])
+        
+        elseif typeof(initFilterMethod) <: AbstractArray
+        
+            if length(ftot_0Fixed) == nErgmPar
+        
+                ftot_0Fixed =  static_estimate(model, obsT[1:nObsFirstEst])
+            else
+                error("wrong length of initial ergm parameters")
+            end
+        end
+    end
+
+
 
     #define the objective function for the optimization
   
-    if !(sum(shuffleObsInds)  .== 0)
+    if !isnothing(shuffleObsInds)
        # was observations shuffing required ?  (used for explorative analysis on non-parametric bootstrap)
         length(shuffleObsInds) == T ? () : error("wrong lenght of shuffling indices")       
-        #shuffled obsrvations loglikelihood
-        function objfunSdOptShuffled(vecUnPar::Array{<:Real,1})
 
-            vecReSDPar,vecConstPar = divideCompleteRestrictPar(vecUnPar)
-
-            oneInADterms  = (StaticNets.maxLargeVal + vecUnPar[1])/StaticNets.maxLargeVal
-
-            foo, logLikeVecT, foo1 = score_driven_filter( model, N, obsT, vecReSDPar, indTvPar;  vConstPar =  vecConstPar, ftot_0 = ftot_0 .* oneInADterms)
-
-                return - sum(logLikeVecT[shuffleObsInds])
-        end
-   
-        ADobjfunSdOpt = TwiceDifferentiable(objfunSdOptShuffled, vParOptim_0; autodiff = :forward);
     else
-        # standard log likelihood
-        function objfunSdOpt(vecUnPar::Array{<:Real,1})
+        # No shuffling required
+        shuffleObsInds = collect(1:T)
+    end        
 
-            vecUnSDPar, vecConstPar = divide_SD_par_from_const(model, indTvPar, vecUnPar)
+    #shuffled obsrvations loglikelihood
+    function objfunSdOptShuffled(vecUnPar::Array{<:Real,1})
+
+            vecUnSDPar, vConstPar = divide_SD_par_from_const(model, indTvPar, vecUnPar)
 
             oneInADterms  = (StaticNets.maxLargeVal + vecUnPar[1])/StaticNets.maxLargeVal
 
             vecReSDPar = restrict_SD_static_par(model, vecUnSDPar)
 
-            foo, logLikeVecT, foo1 = score_driven_filter( model, N, obsT, vecReSDPar, indTvPar;  vConstPar =  vecConstPar, ftot_0 = ftot_0 .* oneInADterms)
+            ftot_0 = ftot_0Fun(vecReSDPar, vConstPar)             
 
-            return - sum(logLikeVecT)
-        end
-        ADobjfunSdOpt = TwiceDifferentiable(objfunSdOpt, vParOptim_0; autodiff = :forward);
-        
+            foo, logLikeVecT, foo1 = score_driven_filter( model, N, obsT, vecReSDPar, indTvPar;  vConstPar =  vConstPar, ftot_0 = ftot_0 .* oneInADterms)
 
-        if haskey(model.options, "Firth")
-            if model.options["Firth"]
-                # log likelihood with firth additional term
-                function objfunSdOptFirth(vecUnPar::Array{<:Real,1})
-                    objfunSdOpt(vecUnPar) -  0.5 * LinearAlgebra.logabsdet( FiniteDiff.finite_difference_hessian(objfunSdOpt, vecUnPar))[1]
-                end
-                ADobjfunSdOpt = TwiceDifferentiable(objfunSdOptFirth, vParOptim_0; autodiff = :forward);
-            end        
-        end
-        
+            return - sum(logLikeVecT[shuffleObsInds])
     end
 
+    ADobjfunSdOpt = TwiceDifferentiable(objfunSdOptShuffled, vParOptim_0; autodiff = :forward);
+
+    if haskey(model.options, "Firth")
+        if model.options["Firth"]
+            # log likelihood with firth additional term
+            function objfunSdOptFirth(vecUnPar::Array{<:Real,1})
+                objfunSdOpt(vecUnPar) -  0.5 * LinearAlgebra.logabsdet( FiniteDiff.finite_difference_hessian(objfunSdOpt, vecUnPar))[1]
+            end
+            ADobjfunSdOpt = TwiceDifferentiable(objfunSdOptFirth, vParOptim_0; autodiff = :forward);
+        end        
+    end
+        
     integratedFlag = false
     if haskey(model.options, "integrated")
         # should we estimate  an integrated version of the SD filter?
@@ -593,7 +618,7 @@ function estimate(model::T where T<: SdErgm, N, obsT; indTvPar::BitArray{1}=mode
             function objfunSdOptInt(vecUnParIntegrated::Array{<:Real,1})  
                 vecUnPar = zeros(Real, 3*NTvPar)
                 vecUnPar[3:3:end] .= vecUnParIntegrated
-                objfunSdOpt(vecUnPar)
+                objfunSdOptShuffled(vecUnPar)
             end
 
             ADobjfunSdOpt = TwiceDifferentiable(objfunSdOptInt, vParOptim_0; autodiff = :forward);
@@ -615,33 +640,24 @@ function estimate(model::T where T<: SdErgm, N, obsT; indTvPar::BitArray{1}=mode
         outParAllUnFull[3:3:end] .= outParAllUn
         outParAllUn = deepcopy(outParAllUnFull)
     end
-    vecAllParGasHat, vecAllParConstHat = divide_SD_par_from_const(model, indTvPar, restrict_all_par(model, indTvPar, outParAllUn))
+
+
 
     Logging.@debug(optim_out2)
 
-    Logging.@debug("[estimate][Final paramters SD: $vecAllParGasHat , constant: $vecAllParConstHat ]")
+    vecAllReParHat = restrict_all_par(model, indTvPar, outParAllUn)
 
+    vecParGasHat, vecParConstHat = divide_SD_par_from_const(model, indTvPar, vecAllReParHat)
 
-    function reshape_results(vecAllParGasHat)
-        arrayAllParHat = fill(Float64[],nErgmPar)
-        lastGasInd = 0
-        lastConstInd = 0
-        for i=1:nErgmPar
-            if indTvPar[i]
-                arrayAllParHat[i] = vecAllParGasHat[lastGasInd+1:lastGasInd+3]
-                lastGasInd += 3
-            else
-                arrayAllParHat[i] = vecAllParConstHat[lastConstInd+1]*ones(1)
-                lastConstInd+=1
-            end
-        end
-        return arrayAllParHat
-    end
+    Logging.@debug("[estimate][Final paramters SD: $vecParGasHat , constant: $vecParConstHat ]")
 
-    arrayAllParHat = reshape_results(vecAllParGasHat)
+    arrayAllParHat = vec_2_array_all_par(model, vecAllReParHat, indTvPar)
+
+    ftot_0Hat = ftot_0Fun(vecParGasHat, vecParConstHat)
+
     conv_flag =  Optim.converged(optim_out2)
    
-     @debug "[estimate][end]"
-    return  arrayAllParHat, conv_flag,UM , ftot_0
+    @debug "[estimate][end]"
+    return  (; arrayAllParHat, conv_flag, UM =zeros(2), ftot_0Hat)
    
 end
