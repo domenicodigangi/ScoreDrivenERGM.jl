@@ -23,7 +23,7 @@ indTvPar = trues(2)
 B0=0.95
 A0 = 0.01
 aResGasPar_0 = [[θ_0*(1-B0), B0, A0], [η_0*(1-B0), B0, A0] ]
-vResGasPar_0 = DynNets.array2VecGasPar(model_mle, aResGasPar_0, indTvPar)
+vResGasPar_0 = DynNets.array_2_vec_all_par(model_mle, aResGasPar_0, indTvPar)
 vResGasPar = vResGasPar_0
 ftot_0= zeros(Real,2)
 
@@ -67,7 +67,7 @@ change_stats_T_dgp = change_stats(model_mle, A_T_dgp)
 estimate(model_mle; indTvPar=indTvPar, indTargPar=indTargPar, obsT = stats_T_dgp)
 
 estPar_mple, conv_flag,UM_mple , ftot_0_mple = estimate(model_mple; indTvPar=indTvPar, indTargPar=indTargPar, obsT = change_stats_T_dgp)
-vResEstPar_mple = DynNets.array2VecGasPar(model_mple, estPar_mple, indTvPar)
+vResEstPar_mple = DynNets.array_2_vec_all_par(model_mple, estPar_mple, indTvPar)
 fVecT_filt_p , target_fun_val_T_p, sVecT_filt_p = score_driven_filter_or_dgp( model_mple,  vResEstPar_mple, indTvPar; obsT = change_stats_T_dgp)
 
 
