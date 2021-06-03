@@ -108,9 +108,9 @@ sample1 = vEstSdUnParBootDist
 sample1 = Utilities.drop_bad_un_estimates(sample1)
 
 fig, ax = subplots(3,2)
-redLines = DynNets.unrestrict_all_par(model_2, model_2.indTvPar, res_2.vEstSdResPar)
+redLines = DynNets.unrestrict_all_par(model_2, res_2.vEstSdResPar)
     if true
-        sample1 = mapslices(x -> DynNets.restrict_all_par(model_2, model_2.indTvPar, x), sample1, dims=1)
+        sample1 = mapslices(x -> DynNets.restrict_all_par(model_2, x), sample1, dims=1)
         redLines = res_2.vEstSdResPar
     end
 
@@ -135,7 +135,7 @@ distribFilteredSD, filtCovHatSample,  _, errFlagSample = DynNets.distrib_filtere
 # vEstSdUnParBootDist = SharedArray(zeros(3*sum(model.indTvPar), nBootStrap))
 
 # @time Threads.@threads for k=1:nBootStrap
-#     vEstSdUnParBootDist[:, k] = rand(1:T, T) |> (inds->(inds |> x-> DynNets.estimate(model, N, res.obsT; indTvPar=model.indTvPar, ftot_0 = res.ftot_0, shuffleObsInds = x) |> x-> getindex(x, 1) |> x -> DynNets.array_2_vec_all_par(model, x, model.indTvPar))) |> x -> DynNets.unrestrict_all_par(model, model.indTvPar, x)
+#     vEstSdUnParBootDist[:, k] = rand(1:T, T) |> (inds->(inds |> x-> DynNets.estimate(model, N, res.obsT; indTvPar=model.indTvPar, ftot_0 = res.ftot_0, shuffleObsInds = x) |> x-> getindex(x, 1) |> x -> DynNets.array_2_vec_all_par(model, x, model.indTvPar))) |> x -> DynNets.unrestrict_all_par(model, x)
 # end
 
 

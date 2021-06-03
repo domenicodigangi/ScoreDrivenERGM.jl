@@ -4,26 +4,18 @@
 # using FiniteDiff
 # Base.eps(Real) = eps(Float64)
 
-function A0_B0_est_for_white_cov_mat_obj_SD_filter_time_seq(model::SdErgm, N, obsT, vEstSdResParAll, indTvPar, ftot_0)
+function A0_B0_est_for_white_cov_mat_obj_SD_filter_time_seq(model::SdErgm, N, obsT, vEstSdResParAll, ftot_0)
 
     T = length(obsT)
     nPar = length(vEstSdResParAll)
     gradT = zeros(nPar, T)
     hessT = zeros(nPar, nPar, T)
 
-    vecUnParAll = unrestrict_all_par(model, indTvPar, vEstSdResParAll)    
+    vecUnParAll = unrestrict_all_par(model, vEstSdResParAll)    
 
-    function obj_fun_t(xUn, t)
-
-            xRe = restrict_all_par(model, indTvPar, xUn)
-
-            vecSDParRe, vConstPar = divide_SD_par_from_const(model, indTvPar, xRe)
-
-            oneInADterms  = (StaticNets.maxLargeVal + vecSDParRe[1])/StaticNets.maxLargeVal
-
-            fVecT_filt, logLikeVecT, ~ = DynNets.score_driven_filter( model, N, obsT[1:t], vecSDParRe, indTvPar; vConstPar =  vConstPar, ftot_0 = ftot_0 .* oneInADterms)
-        
-            return - logLikeVecT[end]
+    function obj_fun_t(xUn, t)        
+        logLikeVecT = seq_loglike_sd_filter(model, N, obsT[1:t], xUn, ftot_0) 
+        return - logLikeVecT[end]
     end
 
     for t = 1:T
@@ -51,7 +43,7 @@ function white_estimate_cov_mat_static_sd_par(model::SdErgm,  N,obsT, indTvPar, 
     errorFlag = false
 
     
-    OPGradSum, HessSum = A0_B0_est_for_white_cov_mat_obj_SD_filter_time_seq(model, N, obsT, vEstSdResParAll, indTvPar, ftot_0)
+    OPGradSum, HessSum = A0_B0_est_for_white_cov_mat_obj_SD_filter_time_seq(model, N, obsT, vEstSdResParAll, ftot_0)
 
     parCovHat = pinv(HessSum) * OPGradSum * pinv(HessSum)
     
@@ -124,11 +116,11 @@ function distrib_filtered_par_from_sample_static_par(model::SdErgm, N, obsT, ind
 
     distribFilteredSD = zeros(nSample, nErgmPar,T)
     filtCovHatSample = zeros(nTvPar, T, nSample)
-    
+    flagIntegrated = is_integrated(model)
     for n=1:nSample
-        vResPar = restrict_all_par(model, indTvPar, sampleUnParAll[:,n])
+        vResPar = restrict_all_par(model, sampleUnParAll[:,n])
 
-        vecSDParRe, vConstPar = divide_SD_par_from_const(model, indTvPar, vResPar)
+        vecSDParRe, vConstPar = divide_SD_par_from_const(model, vResPar)
 
         distribFilteredSD[n, :, :] , ~, ~, invScalMatT = DynNets.score_driven_filter( model, N, obsT, vecSDParRe, indTvPar;ftot_0=ftot_0, vConstPar=vConstPar)
 
@@ -191,7 +183,7 @@ function par_bootstrap_distrib_filtered_par(model::SdErgm, N, obsT, indTvPar, ft
     distribFilteredSD = SharedArray(zeros(nSample, nErgmPar,T))
     filtCovHatSample = SharedArray(zeros(nErgmPar, nSample))
     errFlagVec = SharedArray{Bool}((nSample))
-
+    flagIntegrated = is_integrated(model)
 
     Threads.@threads for n=1:nSample
         
@@ -205,11 +197,11 @@ function par_bootstrap_distrib_filtered_par(model::SdErgm, N, obsT, indTvPar, ft
 
             vResPar = DynNets.array_2_vec_all_par(model, arrayAllParHat, indTvPar)
     
-            vUnPar = unrestrict_all_par(model, indTvPar, deepcopy(vResPar))
+            vUnPar = unrestrict_all_par(model, deepcopy(vResPar))
 
             vUnParEstDistrib[:,n] =  vUnPar
 
-            vecSDParRe, vConstPar = divide_SD_par_from_const(model, indTvPar, vResPar)
+            vecSDParRe, vConstPar = divide_SD_par_from_const(model, vResPar)
 
             distribFilteredSD[n, :, :] , ~, ~ = DynNets.score_driven_filter( model, N, obsT, vecSDParRe, indTvPar; ftot_0=ftot_0, vConstPar=vConstPar)
 
@@ -235,7 +227,7 @@ function non_par_bootstrap_distrib_filtered_par(model::SdErgm, N, obsT, indTvPar
     vEstSdUnParBootDist = SharedArray(zeros(3*sum(model.indTvPar), nBootStrap))
     T = length(obsT)
     @time Threads.@threads for k=1:nBootStrap
-        vEstSdUnParBootDist[:, k] = rand(1:T, T) |> (inds->(inds |> x-> DynNets.estimate(model, N, obsT; indTvPar=indTvPar, ftot_0 = ftot_0, shuffleObsInds = x) |> x-> getindex(x, 1) |> x -> DynNets.array_2_vec_all_par(model, x, model.indTvPar))) |> x -> DynNets.unrestrict_all_par(model, model.indTvPar, x)
+        vEstSdUnParBootDist[:, k] = rand(1:T, T) |> (inds->(inds |> x-> DynNets.estimate(model, N, obsT; indTvPar=indTvPar, ftot_0 = ftot_0, shuffleObsInds = x) |> x-> getindex(x, 1) |> x -> DynNets.array_2_vec_all_par(model, x, model.indTvPar))) |> x -> DynNets.unrestrict_all_par(model, x)
     end
 
     return vEstSdUnParBootDist
@@ -382,14 +374,14 @@ function conf_bands_coverage(parDgpTIn, confBandsIn; offset=0 )
 end
 
 
-function conf_bands_given_SD_estimates(model::SdErgm, N, obsT, vEstSdUnParAll, ftot_0, quantilesVals::Vector{Vector{Float64}}; indTvPar = model.indTvPar, parDgpT=zeros(2,2), plotFlag=false, parUncMethod = "WHITE-MLE", dropOutliers = false, offset = 1,  nSample = 500 , mvSDUnParEstCov = Symmetric(zeros(3,3)), sampleStaticUnPar = zeros(3,3), winsorProp=0, xval=nothing)
+function conf_bands_given_SD_estimates(model::SdErgm, N, obsT, vEstSdUnParAll, ftot_0, quantilesVals::Vector{Vector{Float64}}; indTvPar = model.indTvPar, parDgpT=zeros(2,2), plotFlag=false, parUncMethod = "WHITE-MLE", dropOutliers = false, offset = 1,  nSample = 100 , mvSDUnParEstCov = Symmetric(zeros(3,3)), sampleStaticUnPar = zeros(3,3), winsorProp=0, xval=nothing)
     
     T = length(obsT)
     nStaticPar = length(indTvPar) + 2*sum(indTvPar)
     nErgmPar = number_ergm_par(model)
 
-    vEstSdResParAll = restrict_all_par(model, indTvPar, vEstSdUnParAll)
-    vEstSdResPar, vConstPar = divide_SD_par_from_const(model, indTvPar,vEstSdResParAll)
+    vEstSdResParAll = restrict_all_par(model, vEstSdUnParAll)
+    vEstSdResPar, vConstPar = divide_SD_par_from_const(model, vEstSdResParAll)
 
     fVecT_filt , target_fun_val_T, sVecT_filt = score_driven_filter(model, N, obsT,  vEstSdResPar, indTvPar; ftot_0 = ftot_0, vConstPar=vConstPar)
 
@@ -442,7 +434,7 @@ function conf_bands_given_SD_estimates(model::SdErgm, N, obsT, vEstSdUnParAll, f
         elseif parUncMethod == "HESS"
                 @debug "[conf_bands_given_SD_estimates][HESS][vEstSdResParAll=$vEstSdResParAll]"
             # Hessian of the objective function
-            OPGradSum, HessSum = A0_B0_est_for_white_cov_mat_obj_SD_filter_time_seq(model, N, obsT, vEstSdResParAll, indTvPar, ftot_0)
+            OPGradSum, HessSum = A0_B0_est_for_white_cov_mat_obj_SD_filter_time_seq(model, N, obsT, vEstSdResParAll, ftot_0)
 
             errFlagEstCov = false
             sampleMvNormal = true
@@ -482,7 +474,7 @@ function conf_bands_given_SD_estimates(model::SdErgm, N, obsT, vEstSdUnParAll, f
                 filtCovHatSample = zeros(nErgmPar, T, nSample) 
                 errFlagSample = true
             else        
-                vEstSdUnPar = unrestrict_all_par(model, indTvPar, vEstSdResParAll)
+                vEstSdUnPar = unrestrict_all_par(model, vEstSdResParAll)
                 mvSDUnParEstCov = Symmetric(mvSDUnParEstCov)
                 @debug "covMAt =$mvSDUnParEstCov"
                 sampleStaticUnPar = distrib_static_par_from_mv_normal(model, N, obsT, indTvPar, ftot_0, vEstSdUnPar, mvSDUnParEstCov; nSample = nSample)
@@ -545,7 +537,7 @@ function estimate_filter_and_conf_bands(model::SdErgm, A_T, quantilesVals::Vecto
     obsT, vEstSdResParAll, fVecT_filt, target_fun_val_T, sVecT_filt, conv_flag, ftot_0 = estimate_and_filter(model, N, obsT; indTvPar = indTvPar, show_trace = show_trace )
     Logging.@debug("[estimate_filter_and_conf_bands][vEstSdResParAll = $vEstSdResParAll] ")
 
-    vEstSdUnPar = unrestrict_all_par(model, indTvPar, vEstSdResParAll)
+    vEstSdUnPar = unrestrict_all_par(model, vEstSdResParAll)
 
     fVecT_filt, confBandsFiltPar, confBandsPar, errFlag, mvSDUnParEstCov, distribFilteredSD = conf_bands_given_SD_estimates(model, N, obsT, vEstSdUnPar, ftot_0, quantilesVals; indTvPar = indTvPar, parDgpT=parDgpT, plotFlag=plotFlag, parUncMethod = parUncMethod)
 

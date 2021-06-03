@@ -9,6 +9,14 @@ Base.string(x::SdErgm) = DynNets.name(x)
 export string
 
 
+function is_integrated(model::SdErgm) 
+    if haskey(model.options, "integrated")
+        return model.options["integrated"]
+    else
+        return false
+    end
+end
+
 identify(model::SdErgm,UnPar::Array{<:Real,1}, idType ) = StaticNets.identify(model.staticModel, UnPar; idType = idType)
 
 
@@ -46,7 +54,7 @@ function setOptionsOptim(model::T where T<: SdErgm; show_trace = false)
     "Set the options for the optimization required in the estimation of the model.
     For the optimization use the Optim package."
     tol = eps()*10
-    maxIter = 150
+    maxIter = 300
     call_back = tr -> isnan(tr[end].value) |(!isfinite(tr[end].value))
     opt = Optim.Options(  g_tol = 1e-8,
                      x_tol = tol,
@@ -114,7 +122,7 @@ end
 """
 Given vecAllPar divide it into a vector of Score Driven parameters and one of costant parameters
 """
-function divide_SD_par_from_const(model::T where T <:SdErgm, indTvPar,  vecAllPar::Array{<:Real,1})
+function divide_SD_par_from_const(model::T where T <:SdErgm,  vecAllPar::Array{<:Real,1}; indTvPar = model.indTvPar)
 
     nTvPar = sum(indTvPar)
     nErgmPar = length(indTvPar)
@@ -125,7 +133,7 @@ function divide_SD_par_from_const(model::T where T <:SdErgm, indTvPar,  vecAllPa
     lastInputInd = 0
     lastIndSD = 0
     lastConstInd = 0
-    #extract the vector of gas parameters, addimng w from targeting when needed
+    #extract the vector of static SD parameters 
     for i=1:nErgmPar
         if indTvPar[i]
             vecSDParAll[lastIndSD+1] = vecAllPar[lastInputInd + 1]
@@ -143,7 +151,7 @@ function divide_SD_par_from_const(model::T where T <:SdErgm, indTvPar,  vecAllPa
 end
 
 
-function merge_SD_par_and_const(model::T where T <:SdErgm, indTvPar,  vecSDPar::Array{<:Real,1}, vConstPar)
+function merge_SD_par_and_const(model::T where T <:SdErgm, vecSDPar::Array{<:Real,1}, vConstPar, indTvPar=model.indTvPar)
 
     nTvPar = sum(indTvPar)
     nConstPar = sum(.!indTvPar)
@@ -218,33 +226,54 @@ end
 """
     separate SD parameters from constant ones, unrestrict SD and merge them back 
 """
-function unrestrict_all_par(model::T where T <:SdErgm, indTvPar, vAllPar)
+function unrestrict_all_par(model::T where T <:SdErgm, vAllPar)
 
-    vSDRe, vConst = divide_SD_par_from_const(model, indTvPar, vAllPar)
+    vSDRe, vConst = divide_SD_par_from_const(model, vAllPar)
 
     vSDUn = unrestrict_SD_static_par(model, vSDRe)
 
-    merge_SD_par_and_const(model, indTvPar, vSDUn, vConst)
+    merge_SD_par_and_const(model, vSDUn, vConst)
 end
 
 """
     separate SD parameters from constant ones, restrict SD and merge them back 
 """
-function restrict_all_par(model::T where T <:SdErgm, indTvPar, vAllPar)
+function restrict_all_par(model::T where T <:SdErgm, vAllPar)
    
-    vSDUn, vConst = divide_SD_par_from_const(model, indTvPar, vAllPar)
+    vSDUn, vConst = divide_SD_par_from_const(model, vAllPar)
 
     vSDRe = restrict_SD_static_par(model, vSDUn)
 
-    merge_SD_par_and_const(model, indTvPar, vSDRe, vConst)
+    merge_SD_par_and_const(model, vSDRe, vConst)
 end
+
+
+"""
+Map subset of parameters for integrated SD model (only A parameters and constant ergm parameters) to a full vector of parameters containing all static ergm parameters, w, B, and A. Setting w.=0 and B .=1  
+"""
+function par_integr_2_full(model, vecUnParIntegratedAll)
+    NTvPar = sum(model.indTvPar)
+    vecUnSDParA = vecUnParIntegratedAll[model.indTvPar]
+    vConstPar = vecUnParIntegratedAll[.!model.indTvPar]
+    
+    vecUnSDPar = zeros(Real, 3*NTvPar)
+
+    vecUnSDPar[1:3:end] .= 0
+    vecUnSDPar[2:3:end] .= Inf
+    vecUnSDPar[3:3:end] .= vecUnSDParA
+    vecUnPar = merge_SD_par_and_const(model, vecUnSDPar, vConstPar)
+
+    return vecUnPar
+end
+
+
 
 
 """
 Given the flag of constant parameters, a starting value for their unconditional means (their constant value, for those constant), return a starting point for the optimization
 """
-function starting_point_optim(model::T where T <:SdErgm, indTvPar, UM; indTargPar =  falses(100))
-    
+function starting_point_optim(model::T where T <:SdErgm,  UM; indTargPar =  falses(100))
+    indTvPar=model.indTvPar
     nTvPar = sum(indTvPar)
     NTargPar = sum(indTargPar)
     nErgmPar = length(indTvPar)
@@ -508,10 +537,40 @@ estimate_single_snap_sequence(model::T where T<: SdErgm, obsT, aggregate=0) = St
 
 
 """
+Sequence of loglikelihoods from SD filter as a function of unrestricted parameters (vector of both static ergm and static SD) and vector of initial parameters 
+"""
+function seq_loglike_sd_filter(model::SdErgm, N, obsT,  vecUnPar::Array{<:Real,1}, ftot_0::T where T<:AbstractArray)
+
+        vecUnSDPar, vConstPar = divide_SD_par_from_const(model, vecUnPar)
+
+        oneInADterms  = (StaticNets.maxLargeVal + vecUnPar[1])/StaticNets.maxLargeVal
+
+        vecReSDPar = restrict_SD_static_par(model, vecUnSDPar)
+
+
+        foo, logLikeVecT, foo1 = score_driven_filter( model, N, obsT, vecReSDPar, model.indTvPar;  vConstPar =  vConstPar, ftot_0 = ftot_0 .* oneInADterms)
+
+        return logLikeVecT
+end
+
+function seq_loglike_sd_filter(model, N, obsT,  vecUnPar::Array{<:Real,1}, ftot_0Fun::Function)
+    @debug "[seq_loglike_sd_filter][N=$N, obs_1_sample = $(obsT[1][1:5,:]), vecUnPar=$vecUnPar, ftot_0Fun = $ftot_0Fun ]"
+        
+        vecUnSDPar, vConstPar = divide_SD_par_from_const(model, vecUnPar)
+
+        vecReSDPar = restrict_SD_static_par(model, vecUnSDPar)
+
+        ftot_0 = ftot_0Fun(vecReSDPar, vConstPar)        
+
+        return seq_loglike_sd_filter(model, N, obsT, vecUnPar, ftot_0)     
+end
+
+
+"""
 Estimate the GAS and static parameters
 """
-function estimate(model::T where T<: SdErgm, N, obsT; indTvPar::BitArray{1}=model.indTvPar, indTargPar::BitArray{1} = falses(length(model.indTvPar)), initFilterMethod :: String = "uncMeans", ftot_0Fixed :: Array{<:Real,1} = zeros(2), nObsFirstEst=5,  vParOptim_0 =zeros(2), shuffleObsInds::Union{Nothing, Vector{<:Int}} = nothing, show_trace = false )
-    @debug "[estimate][start][indTvPar=$indTvPar, indTargPar=$indTargPar, initFilterMethod=$initFilterMethod, ftot_0Fixed = $ftot_0Fixed,  vParOptim_0 = $vParOptim_0, shuffleObsInds=$shuffleObsInds, model.options = $(model.options)]"
+function estimate(model::T where T<: SdErgm, N, obsT; indTvPar::BitArray{1}=model.indTvPar, indTargPar::BitArray{1} = falses(length(model.indTvPar)), initFilterMethod :: String = "uncMean", ftot_0Fixed :: Array{<:Real,1} = zeros(2), nObsFirstEst=5,  vParOptim_0 =zeros(2), shuffleObsInds::Union{Nothing, Vector{<:Int}} = nothing, show_trace = false )
+    @debug "[estimate][start][model=$model, indTvPar=$indTvPar, indTargPar=$indTargPar, initFilterMethod=$initFilterMethod, ftot_0Fixed = $ftot_0Fixed,  vParOptim_0 = $vParOptim_0, shuffleObsInds=$shuffleObsInds, model.options = $(model.options)]"
 
     T = length(obsT);
     nErgmPar = number_ergm_par(model)
@@ -519,27 +578,32 @@ function estimate(model::T where T<: SdErgm, N, obsT; indTvPar::BitArray{1}=mode
     NTargPar = sum(indTargPar)
     Logging.@debug( "[estimate][Estimating N = $N , T=$T]")
 
-  
-
-
     optims_opt, algo = setOptionsOptim(model; show_trace = show_trace )
 
     staticPars = static_estimate(model, obsT)
 
-    vParOptim_0_tmp, ARe_min = starting_point_optim(model, indTvPar, staticPars; indTargPar = indTargPar)
 
     if sum(vParOptim_0) == 0
+        vParOptim_0_tmp, ARe_min = starting_point_optim(model, staticPars; indTargPar = indTargPar)
         vParOptim_0 = vParOptim_0_tmp
+        @debug "[estimate][using standard starting point][$(vParOptim_0_tmp)]" 
     end
 
   
     ftot_0Fun(vecReSDPar, vConstPar) = ftot_0Fixed
+    @show ftot_0Fixed
 
     # How should we handle the initialization of SD iteration ? 
-    if initFilterMethod == "uncMean" 
-        if haskey(model.options, "integrated")
-            model.options["integrated"] ? error("Integrated filters cannot use the unconditional mean") : ()
-        end
+    if (initFilterMethod == "uncMean") & (is_integrated(model) )
+
+        initFilterMethod =  "estimateFirstObs" 
+
+        @error "Integrated filters cannot use the unconditional mean, using $initFilterMethod instead"
+    end
+    
+    if (initFilterMethod == "uncMean") & (!is_integrated(model))
+    
+
         function ftot_0Fun(vecReSDPar, vConstPar) 
             w = vecReSDPar[1:3:end]
             B = vecReSDPar[2:3:end]
@@ -556,19 +620,19 @@ function estimate(model::T where T<: SdErgm, N, obsT; indTvPar::BitArray{1}=mode
     else
         if initFilterMethod == "estimateFirstObs" 
             ftot_0Fixed =  static_estimate(model, obsT[1:nObsFirstEst])
+            ftot_0Fun(vecReSDPar, vConstPar) = ftot_0Fixed
         
         elseif typeof(initFilterMethod) <: AbstractArray
         
             if length(ftot_0Fixed) == nErgmPar
         
                 ftot_0Fixed =  static_estimate(model, obsT[1:nObsFirstEst])
+                ftot_0Fun(vecReSDPar, vConstPar) = ftot_0Fixed
             else
                 error("wrong length of initial ergm parameters")
             end
         end
     end
-
-
 
     #define the objective function for the optimization
   
@@ -581,20 +645,11 @@ function estimate(model::T where T<: SdErgm, N, obsT; indTvPar::BitArray{1}=mode
         shuffleObsInds = collect(1:T)
     end        
 
-    #shuffled obsrvations loglikelihood
+    #shuffled observations loglikelihood    
     function objfunSdOptShuffled(vecUnPar::Array{<:Real,1})
 
-            vecUnSDPar, vConstPar = divide_SD_par_from_const(model, indTvPar, vecUnPar)
-
-            oneInADterms  = (StaticNets.maxLargeVal + vecUnPar[1])/StaticNets.maxLargeVal
-
-            vecReSDPar = restrict_SD_static_par(model, vecUnSDPar)
-
-            ftot_0 = ftot_0Fun(vecReSDPar, vConstPar)             
-
-            foo, logLikeVecT, foo1 = score_driven_filter( model, N, obsT, vecReSDPar, indTvPar;  vConstPar =  vConstPar, ftot_0 = ftot_0 .* oneInADterms)
-
-            return - sum(logLikeVecT[shuffleObsInds])
+        logLikeVecT = seq_loglike_sd_filter(model, N, obsT, vecUnPar, ftot_0Fun)    
+        return - sum(logLikeVecT[shuffleObsInds])
     end
 
     ADobjfunSdOpt = TwiceDifferentiable(objfunSdOptShuffled, vParOptim_0; autodiff = :forward);
@@ -609,20 +664,13 @@ function estimate(model::T where T<: SdErgm, N, obsT; indTvPar::BitArray{1}=mode
         end        
     end
         
-    integratedFlag = false
-    if haskey(model.options, "integrated")
+    if is_integrated(model)
         # should we estimate  an integrated version of the SD filter?
-        if model.options["integrated"]
-            integratedFlag = true
-            vParOptim_0 = ones(Real, NTvPar) * 0.1#vParOptim_0[3:3:end]
-            function objfunSdOptInt(vecUnParIntegrated::Array{<:Real,1})  
-                vecUnPar = zeros(Real, 3*NTvPar)
-                vecUnPar[3:3:end] .= vecUnParIntegrated
-                objfunSdOptShuffled(vecUnPar)
-            end
+        vParOptim_0 = ones(Real, NTvPar) * 0.001 #vParOptim_0[3:3:end]
 
-            ADobjfunSdOpt = TwiceDifferentiable(objfunSdOptInt, vParOptim_0; autodiff = :forward);
-        end
+        objfunSdOptInt(vecUnParIntegratedAll::Array{<:Real,1}) = objfunSdOptShuffled(par_integr_2_full(model, vecUnParIntegratedAll))
+        
+        ADobjfunSdOpt = TwiceDifferentiable(objfunSdOptInt, vParOptim_0; autodiff = :forward);
     end
     
     
@@ -630,10 +678,10 @@ function estimate(model::T where T<: SdErgm, N, obsT; indTvPar::BitArray{1}=mode
     #Run the optimization
    
     Logging.@debug("[estimate][Starting point for Optim $vParOptim_0]")
-    Logging.@debug("[estimate][Starting point for Optim $(restrict_all_par(model, indTvPar, vParOptim_0))]")
+    Logging.@debug("[estimate][Starting point for Optim $(restrict_all_par(model, vParOptim_0))]")
     optim_out2  = optimize(ADobjfunSdOpt, vParOptim_0, algo, optims_opt)
     outParAllUn = Optim.minimizer(optim_out2)
-    if integratedFlag
+    if is_integrated(model)
         outParAllUnFull = zeros(3*NTvPar)
         outParAllUnFull[1:3:end] .= 0
         outParAllUnFull[2:3:end] .= Inf
@@ -645,9 +693,9 @@ function estimate(model::T where T<: SdErgm, N, obsT; indTvPar::BitArray{1}=mode
 
     Logging.@debug(optim_out2)
 
-    vecAllReParHat = restrict_all_par(model, indTvPar, outParAllUn)
+    vecAllReParHat = restrict_all_par(model, outParAllUn)
 
-    vecParGasHat, vecParConstHat = divide_SD_par_from_const(model, indTvPar, vecAllReParHat)
+    vecParGasHat, vecParConstHat = divide_SD_par_from_const(model, vecAllReParHat)
 
     Logging.@debug("[estimate][Final paramters SD: $vecParGasHat , constant: $vecParConstHat ]")
 

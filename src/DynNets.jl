@@ -1,6 +1,7 @@
 module DynNets
 
 
+using Base: FlatteningRF, Bool
 using Distributions
 using StatsBase
 using Optim

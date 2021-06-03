@@ -99,7 +99,7 @@ function estimate_and_filter(model::SdErgm, N, obsT; indTvPar = model.indTvPar, 
 
     vEstSdResParAll = array_2_vec_all_par(model, estSdResPar, indTvPar)
 
-    vEstSdResPar, vConstPar = divide_SD_par_from_const(model, indTvPar,vEstSdResParAll)
+    vEstSdResPar, vConstPar = divide_SD_par_from_const(model, vEstSdResParAll)
 
     fVecT_filt , target_fun_val_T, sVecT_filt = score_driven_filter(model, N, obsT,  vEstSdResPar, indTvPar;ftot_0 = ftot_0, vConstPar=vConstPar)
 
@@ -147,7 +147,9 @@ function simulate_and_estimate_parallel(model::SdErgm, dgpSettings, T, N, nSampl
     return allObsT, allvEstSdResPar, allfVecT_filt, allParDgpT, allConvFlag, allftot_0, allfVecT_filt_SS
 end
 
-
+"""
+Given the SD filter's parameter, compute the confidence bands and check their coverages
+"""
 function average_coverages(res, m; limitSample=nothing, quantilesVals = [ [0.975, 0.025]], winsorProp=0)
     
     N = res.N
@@ -181,9 +183,12 @@ function average_coverages(res, m; limitSample=nothing, quantilesVals = [ [0.975
         Logging.@info("Estimating Conf Bands  N = $N , T=$T, $(DynNets.name(res.model)), $(res.dgpSettings) iter n $(count[1]), ")
         count[1] += 1
 
-        vEstSdUnPar = unrestrict_all_par(res.model, res.model.indTvPar, res.allvEstSdResPar[:,n])
-
-        ~, allConfBandsFiltPar[:,:,:,:,n], allConfBandsPar[:,:,:,:,n], errFlag, allmvSDUnParEstCovWhite[:,:,n], distribFilteredSD = DynNets.conf_bands_given_SD_estimates(res.model, N, res.allObsT[n], vEstSdUnPar, res.allftot_0[:,n], quantilesVals;  parUncMethod = m, mvSDUnParEstCov=mvSDUnParEstCov, winsorProp=winsorProp )
+        vEstSdUnPar = unrestrict_all_par(res.model, res.allvEstSdResPar[:,n])
+        errFlag = true
+        try
+            ~, allConfBandsFiltPar[:,:,:,:,n], allConfBandsPar[:,:,:,:,n], errFlag, allmvSDUnParEstCovWhite[:,:,n], distribFilteredSD = DynNets.conf_bands_given_SD_estimates(res.model, N, res.allObsT[n], vEstSdUnPar, res.allftot_0[:,n], quantilesVals;  parUncMethod = m, mvSDUnParEstCov=mvSDUnParEstCov, winsorProp=winsorProp )
+        catch
+        end
 
         coverFiltParUnc = DynNets.conf_bands_coverage(res.allParDgpT[:,:,n],   allConfBandsFiltPar[:,:,:,:,n])
 

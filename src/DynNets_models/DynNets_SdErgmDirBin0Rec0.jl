@@ -33,7 +33,7 @@ export string
 """
 Given the flag of constant parameters, a starting value for their unconditional means (their constant value, for those constant), return a starting point for the optimization
 """
-function starting_point_optim(model::T where T <:SdErgmDirBin0Rec0, indTvPar, UM; indTargPar =  falses(100))
+function starting_point_optim(model::T where T <:SdErgmDirBin0Rec0, UM; indTargPar =  falses(100))
     
     nTvPar = sum(indTvPar)
     NTargPar = sum(indTargPar)
@@ -237,8 +237,8 @@ function sample_time_var_par_from_dgp(model::SdErgmDirBin0Rec0, dgpType, N, T;  
 
             Logging.@warn(" the score driven DGP used is the Maximum Likelihood one. PML is too slow")
 
-            vUnPar, ~ = DynNets.starting_point_optim(model, indTvPar, UM)
-            vResParDgp = DynNets.restrict_all_par(model, indTvPar, vUnPar)
+            vUnPar, ~ = DynNets.starting_point_optim(model, UM)
+            vResParDgp = DynNets.restrict_all_par(model, vUnPar)
 
             vResParDgp[2:3:end] .= B[1]
             vResParDgp[3:3:end].= A[1]
