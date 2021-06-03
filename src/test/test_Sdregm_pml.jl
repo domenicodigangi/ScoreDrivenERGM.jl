@@ -3,7 +3,7 @@
 #Created Date: Monday May 10th 2021
 #Author: Domenico Di Gangi,  <digangidomenico@gmail.com>
 #-----
-#Last Modified: Thursday June 3rd 2021 9:01:20 pm
+#Last Modified: Friday June 4th 2021 12:56:09 am
 #Modified By:  Domenico Di Gangi
 #-----
 #Description: Test SDERGM_pml for different combinations of statistics
@@ -83,24 +83,26 @@ ENV["JULIA_DEBUG"] = nothing
 ergmTermsString = "edges + mutual"
 model = DynNets.SdErgmPml(ergmTermsString, true)
 nErgmPar = model.nErgmPar
+model.options["integrated"] = false
+model.options["initMeth"] ="estimateFirstObs"# "uncMean"# 
+
+DynNets.get_option(model, "initMeth")
 
 dgpVals0 = DynNets.static_estimate(model, Int8.(rand(Bool, N, N)))    
 
-model_int = deepcopy(model)
-model_int.options["integrated"] = true
 
 dgpParT = hcat(dgpVals0.*ones(nErgmPar, round(Int,T/2)),2 *dgpVals0.* ones(nErgmPar, round(Int, T/2)))
 # test reasonable sampling
 A_T = DynNets.sample_ergm_sequence(model, N, dgpParT, 1) 
 obsT = [DynNets.stats_from_mat(model, A_T[:,:,t]) for t in 1:T ] 
 
-estSdResPar, conv_flag, UM_mple, ftot_0 = DynNets.estimate(model_int, N, obsT; indTvPar=model_int.indTvPar, show_trace = true, initFilterMethod =  "estimateFirstObs" )
+estSdResPar, conv_flag, UM_mple, ftot_0 = DynNets.estimate(model, N, obsT; indTvPar=model.indTvPar, show_trace = true )
 
 vEstSdResParAll = DynNets.array_2_vec_all_par(model, estSdResPar, model.indTvPar)
 
 vEstSdResPar, vConstPar = DynNets.divide_SD_par_from_const(model, vEstSdResParAll)
 
-vEstSdResPar[3:3:end] .= 0.01
+# vEstSdResPar[3:3:end] .= 0.001
 fVecT_filt , target_fun_val_T, sVecT_filt = DynNets.score_driven_filter(model, N, obsT,  vEstSdResPar, model.indTvPar;ftot_0 = ftot_0, vConstPar=vConstPar)
 
 DynNets.plot_filtered(model, N, fVecT_filt; parDgpTIn=dgpParT)
@@ -108,25 +110,24 @@ DynNets.plot_filtered(model, N, fVecT_filt; parDgpTIn=dgpParT)
 ss_filt = DynNets.estimate_single_snap_sequence(model, obsT)
 DynNets.plot_filtered(model, N, ss_filt; parDgpTIn=dgpParT)
 
-DynNets.is_integrated(model_int)
 DynNets.seq_loglike_sd_filter(model, N, obsT,  vecUnPar, ftot_0Fun::Function)
 
-indTvPar = model_int.indTvPar
-vEstSdResParAll = DynNets.array_2_vec_all_par(model_int, estSdResPar, indTvPar)
+indTvPar = model.indTvPar
+vEstSdResParAll = DynNets.array_2_vec_all_par(model, estSdResPar, indTvPar)
 
-vEstSdResPar, vConstPar = DynNets.divide_SD_par_from_const(model_int, vEstSdResParAll)
+vEstSdResPar, vConstPar = DynNets.divide_SD_par_from_const(model, vEstSdResParAll)
 
-fVecT_filt , target_fun_val_T, sVecT_filt = DynNets.score_driven_filter(model_int, N, obsT,  vEstSdResPar, indTvPar;ftot_0 = ftot_0, vConstPar=vConstPar)
+fVecT_filt , target_fun_val_T, sVecT_filt = DynNets.score_driven_filter(model, N, obsT,  vEstSdResPar, indTvPar;ftot_0 = ftot_0, vConstPar=vConstPar)
 
 
 using PyPlot
 
-# res_est = DynNets.estimate_and_filter(model_int, N, obsT; show_trace = true)
-fig, ax = DynNets.plot_filtered(model_int, N, fVecT_filt)
+# res_est = DynNets.estimate_and_filter(model, N, obsT; show_trace = true)
+fig, ax = DynNets.plot_filtered(model, N, fVecT_filt)
 
 
-est_SS = DynNets.estimate_single_snap_sequence(model_int, obsT)
-fig, ax = DynNets.plot_filtered(model_int, N, est_SS, ax=ax, lineType = ".", lineColor="r")
+est_SS = DynNets.estimate_single_snap_sequence(model, obsT)
+fig, ax = DynNets.plot_filtered(model, N, est_SS, ax=ax, lineType = ".", lineColor="r")
 
 
 

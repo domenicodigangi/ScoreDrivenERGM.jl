@@ -116,7 +116,7 @@ function distrib_filtered_par_from_sample_static_par(model::SdErgm, N, obsT, ind
 
     distribFilteredSD = zeros(nSample, nErgmPar,T)
     filtCovHatSample = zeros(nTvPar, T, nSample)
-    flagIntegrated = is_integrated(model)
+    flagIntegrated = get_option(model,  "integrated")
     for n=1:nSample
         vResPar = restrict_all_par(model, sampleUnParAll[:,n])
 
@@ -183,7 +183,7 @@ function par_bootstrap_distrib_filtered_par(model::SdErgm, N, obsT, indTvPar, ft
     distribFilteredSD = SharedArray(zeros(nSample, nErgmPar,T))
     filtCovHatSample = SharedArray(zeros(nErgmPar, nSample))
     errFlagVec = SharedArray{Bool}((nSample))
-    flagIntegrated = is_integrated(model)
+    flagIntegrated = get_option(model,  "integrated")
 
     Threads.@threads for n=1:nSample
         

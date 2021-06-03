@@ -1,5 +1,7 @@
 #DIRECTED NETWORKS------------
+# NOT UPDATED TO LAST VERSION, NOT WORKING!
 # --------------------------Sender Receiver Effect
+
 struct  SdErgmDirBin1 <: SdErgm
      """ A Logistic Gas model for Directed binary networks and probability depending only
              on time varying parameters.

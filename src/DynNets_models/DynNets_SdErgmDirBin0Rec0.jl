@@ -7,7 +7,7 @@ Base.@kwdef struct  SdErgmDirBin0Rec0_mle <: SdErgmDirBin0Rec0
     staticModel = ErgmDirBin0Rec0()
     indTvPar :: BitArray{1} = trues(2) #  what parameters are time varying   ?
     scoreScalingType::String = "FISH_D" # String that specifies the rescaling of the score. For a list of possible choices see function scalingMatGas
-    options::SortedDict{Any, Any} = SortedDict()
+    options::SortedDict{Any, Any} = SortedDict("integrated"=>false, "initMeth"=>"estimateFirstObs")
 end
 export SdErgmDirBin0Rec0_mle
 
@@ -348,33 +348,3 @@ function sample_est_mle_pmle(model::SdErgmDirBin0Rec0, parDgpT, N, Nsample; plot
     return (; vEstSd_mle, vEstSd_pmle, avg_rmse_mle, avg_rmse_pmle)
 end
 
-
-
-function list_example_dgp_settings(model::T where T <: SdErgmDirBin0Rec0; out="tuple")
-
-    dgpSetARlowlow = (type = "AR", opt = (B =[0.98], sigma = [0.005]))
-    
-    dgpSetARlow = (type = "AR", opt = (B =[0.98], sigma = [0.01]))
-
-    dgpSetARmed = (type = "AR", opt = (B =[0.98], sigma = [0.05]))
-    
-    dgpSetARhigh = (type = "AR", opt = (B =[0.98], sigma = [0.1]))
-
-    dgpSetSIN = (type = "SIN", opt = ( nCycles=[1.5]))
-
-    dgpSetSDlow = (type = "SD", opt = (B =[0.98], A = [0.01]))
-
-    dgpSetSD = (type = "SD", opt = (B =[0.98], A = [0.3]))
-    
-    dgpSetSDhigh = (type = "SD", opt = (B =[0.98], A = [3]))
-
-    tupleList =  (; dgpSetARlowlow, dgpSetARlow, dgpSetARmed, dgpSetARhigh, dgpSetSIN, dgpSetSDlow, dgpSetSD, dgpSetSDhigh)
-
-    if out == "tuple"
-        return tupleList
-    elseif out == "dict"
-        d = Dict() 
-        [d[string(dgp)[7:end]] = getfield(tupleList,dgp) for dgp in fieldnames(typeof(tupleList))]
-        return d
-    end
-end

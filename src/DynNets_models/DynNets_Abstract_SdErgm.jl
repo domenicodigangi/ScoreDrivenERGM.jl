@@ -8,14 +8,20 @@ abstract type SdErgm end
 Base.string(x::SdErgm) = DynNets.name(x) 
 export string
 
+function get_option(model::SdErgm, optName)
 
-function is_integrated(model::SdErgm) 
-    if haskey(model.options, "integrated")
-        return model.options["integrated"]
+    defaultOptions = typeof(model)(model.staticModel).options
+ 
+    if haskey(model.options, optName)
+        return getindex(model.options, optName)
+    
+    elseif haskey(model.defaultOptions, optName)
+        return getindex(defaultOptions, optName)
     else
-        return false
+        error("No option found")
     end
 end
+
 
 identify(model::SdErgm,UnPar::Array{<:Real,1}, idType ) = StaticNets.identify(model.staticModel, UnPar; idType = idType)
 
@@ -251,7 +257,7 @@ end
 """
 Map subset of parameters for integrated SD model (only A parameters and constant ergm parameters) to a full vector of parameters containing all static ergm parameters, w, B, and A. Setting w.=0 and B .=1  
 """
-function par_integr_2_full(model, vecUnParIntegratedAll)
+function par_integr_2_full_unrestr(model, vecUnParIntegratedAll)
     NTvPar = sum(model.indTvPar)
     vecUnSDParA = vecUnParIntegratedAll[model.indTvPar]
     vConstPar = vecUnParIntegratedAll[.!model.indTvPar]
@@ -275,7 +281,6 @@ Given the flag of constant parameters, a starting value for their unconditional 
 function starting_point_optim(model::T where T <:SdErgm,  UM; indTargPar =  falses(100))
     indTvPar=model.indTvPar
     nTvPar = sum(indTvPar)
-    NTargPar = sum(indTargPar)
     nErgmPar = length(indTvPar)
     
     # #set the starting points for the optimizations
@@ -284,7 +289,7 @@ function starting_point_optim(model::T where T <:SdErgm,  UM; indTargPar =  fals
     A0_Re  = 0.01 ; A0_Un = log(A0_Re  .-  ARe_min)
     
     # starting values for the vector of parameters that have to be optimized
-    vParOptim_0 = zeros(nErgmPar + nTvPar*2 - NTargPar)
+    vParOptim_0 = zeros(nErgmPar + nTvPar*2 )
     last = 0
     for i=1:nErgmPar
         if indTvPar[i]
@@ -567,15 +572,14 @@ end
 
 
 """
-Estimate the GAS and static parameters
+Estimate the SD and ergm static parameters 
 """
-function estimate(model::T where T<: SdErgm, N, obsT; indTvPar::BitArray{1}=model.indTvPar, indTargPar::BitArray{1} = falses(length(model.indTvPar)), initFilterMethod :: String = "uncMean", ftot_0Fixed :: Array{<:Real,1} = zeros(2), nObsFirstEst=5,  vParOptim_0 =zeros(2), shuffleObsInds::Union{Nothing, Vector{<:Int}} = nothing, show_trace = false )
-    @debug "[estimate][start][model=$model, indTvPar=$indTvPar, indTargPar=$indTargPar, initFilterMethod=$initFilterMethod, ftot_0Fixed = $ftot_0Fixed,  vParOptim_0 = $vParOptim_0, shuffleObsInds=$shuffleObsInds, model.options = $(model.options)]"
+function estimate(model::T where T<: SdErgm, N, obsT; indTvPar::BitArray{1}=model.indTvPar, indTargPar::BitArray{1} = falses(length(model.indTvPar)), initMeth :: String = get_option(model, "initMeth"), ftot_0Fixed :: Array{<:Real,1} = zeros(2), nObsFirstEst=10,  vParOptim_0 =zeros(2), shuffleObsInds::Union{Nothing, Vector{<:Int}} = nothing, show_trace = false )
+    @debug "[estimate][start][model=$model, indTvPar=$indTvPar, indTargPar=$indTargPar, initMeth=$initMeth, ftot_0Fixed = $ftot_0Fixed,  vParOptim_0 = $vParOptim_0, shuffleObsInds=$shuffleObsInds, model.options = $(model.options)]"
 
     T = length(obsT);
     nErgmPar = number_ergm_par(model)
     NTvPar = sum(indTvPar)
-    NTargPar = sum(indTargPar)
     Logging.@debug( "[estimate][Estimating N = $N , T=$T]")
 
     optims_opt, algo = setOptionsOptim(model; show_trace = show_trace )
@@ -594,16 +598,13 @@ function estimate(model::T where T<: SdErgm, N, obsT; indTvPar::BitArray{1}=mode
     @show ftot_0Fixed
 
     # How should we handle the initialization of SD iteration ? 
-    if (initFilterMethod == "uncMean") & (is_integrated(model) )
+    if (initMeth == "uncMean") & (get_option(model,  "integrated") )
 
-        initFilterMethod =  "estimateFirstObs" 
-
-        @error "Integrated filters cannot use the unconditional mean, using $initFilterMethod instead"
+        error("Integrated filters cannot use the unconditional mean, using $initMeth instead")
     end
     
-    if (initFilterMethod == "uncMean") & (!is_integrated(model))
+    if (initMeth == "uncMean") & (!get_option(model,  "integrated"))
     
-
         function ftot_0Fun(vecReSDPar, vConstPar) 
             w = vecReSDPar[1:3:end]
             B = vecReSDPar[2:3:end]
@@ -618,11 +619,11 @@ function estimate(model::T where T<: SdErgm, N, obsT; indTvPar::BitArray{1}=mode
             return ftot_0
         end
     else
-        if initFilterMethod == "estimateFirstObs" 
+        if initMeth == "estimateFirstObs" 
             ftot_0Fixed =  static_estimate(model, obsT[1:nObsFirstEst])
             ftot_0Fun(vecReSDPar, vConstPar) = ftot_0Fixed
         
-        elseif typeof(initFilterMethod) <: AbstractArray
+        elseif typeof(initMeth) <: AbstractArray
         
             if length(ftot_0Fixed) == nErgmPar
         
@@ -664,11 +665,11 @@ function estimate(model::T where T<: SdErgm, N, obsT; indTvPar::BitArray{1}=mode
         end        
     end
         
-    if is_integrated(model)
+    if get_option(model,  "integrated")
         # should we estimate  an integrated version of the SD filter?
         vParOptim_0 = ones(Real, NTvPar) * 0.001 #vParOptim_0[3:3:end]
 
-        objfunSdOptInt(vecUnParIntegratedAll::Array{<:Real,1}) = objfunSdOptShuffled(par_integr_2_full(model, vecUnParIntegratedAll))
+        objfunSdOptInt(vecUnParIntegratedAll::Array{<:Real,1}) = objfunSdOptShuffled(par_integr_2_full_unrestr(model, vecUnParIntegratedAll))
         
         ADobjfunSdOpt = TwiceDifferentiable(objfunSdOptInt, vParOptim_0; autodiff = :forward);
     end
@@ -681,7 +682,7 @@ function estimate(model::T where T<: SdErgm, N, obsT; indTvPar::BitArray{1}=mode
     Logging.@debug("[estimate][Starting point for Optim $(restrict_all_par(model, vParOptim_0))]")
     optim_out2  = optimize(ADobjfunSdOpt, vParOptim_0, algo, optims_opt)
     outParAllUn = Optim.minimizer(optim_out2)
-    if is_integrated(model)
+    if get_option(model,  "integrated")
         outParAllUnFull = zeros(3*NTvPar)
         outParAllUnFull[1:3:end] .= 0
         outParAllUnFull[2:3:end] .= Inf

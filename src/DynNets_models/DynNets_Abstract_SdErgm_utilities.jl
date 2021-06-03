@@ -210,3 +210,42 @@ function average_coverages(res, m; limitSample=nothing, quantilesVals = [ [0.975
     return sdata(avgCover), sdata(constInds), sdata(errInds), sdata(allConfBandsFiltPar), sdata(allConfBandsPar), sdata(allmvSDUnParEstCovWhite)
 end
 export average_coverages
+
+
+
+
+
+function list_example_dgp_settings(model::SdErgm; out="tuple", minVals = [-3.0, 0], maxVals = [-2.4, 1])
+
+    
+    dgpSetARlowlow = (type = "AR", opt = (B =[0.98], sigma = [0.005]))
+    
+    dgpSetARlowlowInt = (type = "AR", opt = (B =[1], sigma = [0.005]))
+    
+    dgpSetARlow = (type = "AR", opt = (B =[0.98], sigma = [0.01]))
+
+    dgpSetARlowInt = (type = "AR", opt = (B =[1], sigma = [0.01]))
+
+    dgpSetARmed = (type = "AR", opt = (B =[0.98], sigma = [0.05]))
+    
+    dgpSetARhigh = (type = "AR", opt = (B =[0.98], sigma = [0.1]))
+
+    dgpSetSIN = (type = "SIN", opt = ( nCycles=[1.5]))
+
+    dgpSetSDlow = (type = "SD", opt = (B =[0.98], A = [0.01]))
+
+    dgpSetSD = (type = "SD", opt = (B =[0.98], A = [0.3]))
+    
+    dgpSetSDhigh = (type = "SD", opt = (B =[0.98], A = [3]))
+
+    tupleList =  (; dgpSetARlowlow, dgpSetARlowlowInt, dgpSetARlow, dgpSetARlowInt, dgpSetARmed, dgpSetARhigh, dgpSetSIN, dgpSetSDlow, dgpSetSD, dgpSetSDhigh)
+    
+    if out == "tuple"
+        return tupleList
+    elseif out == "dict"
+        d = Dict() 
+        [d[string(dgp)[7:end]] = getfield(tupleList,dgp) for dgp in fieldnames(typeof(tupleList))]
+        return d
+    end
+end
+export list_example_dgp_settings

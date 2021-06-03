@@ -2,18 +2,15 @@ import ..StaticNets
 
 import ..StaticNets:NetModeErgmPml, ErgmDirBin0Rec0
 
-
 Base.@kwdef struct  SdErgmPml <: SdErgm
     staticModel::NetModeErgmPml
     indTvPar :: BitArray{1} 
     scoreScalingType::String = "FISH_D" # String that specifies the rescaling of the score. For a list of possible choices see function scalingMatGas
-    options::SortedDict{Any, Any} = SortedDict()
+    options::SortedDict{Any, Any} = SortedDict("integrated"=>false, "initMeth"=>"estimateFirstObs")
 end
 export SdErgmPml
 
-
 SdErgmPml(staticModel::NetModeErgmPml) = SdErgmPml(staticModel=staticModel, indTvPar = trues(staticModel.nErgmPar))
-
 
 SdErgmPml(ergmTermsString::String, isDirected::Bool) = SdErgmPml(NetModeErgmPml(ergmTermsString, isDirected))
 
@@ -155,33 +152,4 @@ function sample_time_var_par_from_dgp(model::SdErgmPml, dgpType, N, T; minVals =
     
      @debug "[sample_time_var_par_from_dgp][end]"
     return parDgpT
-end
-
-
-function list_example_dgp_settings(model::SdErgmPml; out="tuple", minVals = [-3.0, 0], maxVals = [-2.4, 1])
-
-    
-    dgpSetARlow = (type = "AR", opt = (B =[0.98], sigma = [0.01], minVals=minVals, maxVals = maxVals ))
-
-    dgpSetARmed = (type = "AR", opt = (B =[0.98], sigma = [0.05], minVals=minVals, maxVals = maxVals))
-    
-    dgpSetARhigh = (type = "AR", opt = (B =[0.98], sigma = [0.1], minVals=minVals, maxVals = maxVals))
-
-    dgpSetSIN = (type = "SIN", opt = ( nCycles=[1.5], minVals=minVals, maxVals = maxVals))
-
-    dgpSetSDlow = (type = "SD", opt = (B =[0.98], A = [0.01], minVals=minVals, maxVals = maxVals))
-
-    dgpSetSD = (type = "SD", opt = (B =[0.98], A = [0.3], minVals=minVals, maxVals = maxVals))
-    
-    dgpSetSDhigh = (type = "SD", opt = (B =[0.98], A = [3], minVals=minVals, maxVals = maxVals))
-
-    tupleList =  (; dgpSetARlow, dgpSetARmed, dgpSetARhigh, dgpSetSIN, dgpSetSDlow, dgpSetSD, dgpSetSDhigh)
-
-    if out == "tuple"
-        return tupleList
-    elseif out == "dict"
-        d = Dict() 
-        [d[string(dgp)[7:end]] = getfield(tupleList,dgp) for dgp in fieldnames(typeof(tupleList))]
-        return d
-    end
 end
